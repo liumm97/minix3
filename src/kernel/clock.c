@@ -66,6 +66,7 @@ PRIVATE irq_hook_t clock_hook;		/* interrupt handler hook */
 /*===========================================================================*
  *				clock_task				     *
  *===========================================================================*/
+// 时钟任务进程入口（table.c 设置偏移量为它）
 PUBLIC void clock_task()
 {
 /* Main program of clock task. If the call is not HARD_INT it is an error.
@@ -73,12 +74,16 @@ PUBLIC void clock_task()
   message m;			/* message buffer for both input and output */
   int result;			/* result returned by the handler */
 
+  // 初始化时钟速率
+  // 设置中断程序入口
+  // 开启时钟中断
   init_clock();			/* initialize clock task */
 
   /* Main loop of the clock task.  Get work, process it. Never reply. */
   while (TRUE) {
 
       /* Go get a message. */
+      // 接受消息 
       receive(ANY, &m);	
 
       /* Handle the request. Only clock ticks are expected. */
@@ -95,6 +100,9 @@ PUBLIC void clock_task()
 /*===========================================================================*
  *				do_clocktick				     *
  *===========================================================================*/
+// 每次时钟中断不一定会调用
+// 只有大量工作要做的时候才做
+// 保证时钟中断处理程序快速 （只发消息，不处理）
 PRIVATE int do_clocktick(m_ptr)
 message *m_ptr;				/* pointer to request message */
 {
@@ -108,12 +116,16 @@ message *m_ptr;				/* pointer to request message */
    * no more time left, it gets a new quantum and is inserted at the right 
    * place in the queues.  As a side-effect a new process will be scheduled.
    */ 
+  // 需要进程切换时 
+  // 切换进程
   if (prev_ptr->p_ticks_left <= 0 && priv(prev_ptr)->s_flags & PREEMPTIBLE) {
       lock_dequeue(prev_ptr);		/* take it off the queues */
       lock_enqueue(prev_ptr);		/* and reinsert it again */ 
   }
 
   /* Check if a clock timer expired and run its watchdog function. */
+  // 判断定时器到期没有 
+  // 使用的是绝对时间
   if (next_timeout <= realtime) { 
   	tmrs_exptimers(&clock_timers, realtime, NULL);
   	next_timeout = clock_timers == NULL ? 
@@ -127,6 +139,8 @@ message *m_ptr;				/* pointer to request message */
 /*===========================================================================*
  *				init_clock				     *
  *===========================================================================*/
+
+// 对中断信息编码
 PRIVATE void init_clock()
 {
   /* Initialize the CLOCK's interrupt hook. */
@@ -143,6 +157,7 @@ PRIVATE void init_clock()
 /*===========================================================================*
  *				clock_stop				     *
  *===========================================================================*/
+// 对中断信息编码
 PUBLIC void clock_stop()
 {
 /* Reset the clock to the BIOS rate. (For rebooting) */
@@ -154,6 +169,7 @@ PUBLIC void clock_stop()
 /*===========================================================================*
  *				clock_handler				     *
  *===========================================================================*/
+// 中断处理函数
 PRIVATE int clock_handler(hook)
 irq_hook_t *hook;
 {
@@ -196,6 +212,7 @@ irq_hook_t *hook;
    * process is running, charge the billable process for system time as well.
    * Thus the unbillable process' user time is the billable user's system time.
    */
+  // 进程计费
   proc_ptr->p_user_time += ticks;
   if (priv(proc_ptr)->s_flags & PREEMPTIBLE) {
       proc_ptr->p_ticks_left -= ticks;
@@ -208,6 +225,8 @@ irq_hook_t *hook;
   /* Check if do_clocktick() must be called. Done for alarms and scheduling.
    * Some processes, such as the kernel tasks, cannot be preempted. 
    */ 
+  // 进程切换 或者定时器到期 
+  // 需要较大工作量 所以发送通知 到时钟任务处理
   if ((next_timeout <= realtime) || (proc_ptr->p_ticks_left <= 0)) {
       prev_ptr = proc_ptr;			/* store running process */
       lock_notify(HARDWARE, CLOCK);		/* send notification */
