@@ -54,6 +54,7 @@ typedef unsigned reg_t;		/* machine register */
  * having 32-bit registers and more segment registers.  The same names are
  * used for the larger registers to avoid differences in the code.
  */
+// 中断时保存进程状态所有信息
 struct stackframe_s {           /* proc_ptr points here */
 #if _WORD_SIZE == 4
   u16_t gs;                     /* last item pushed by save */
@@ -70,6 +71,7 @@ struct stackframe_s {           /* proc_ptr points here */
   reg_t cx;                     /*  | */
   reg_t retreg;			/* ax and above are all pushed by save */
   reg_t retadr;			/* return address for assembly code save() */
+  // 指令计数器 cs:ip = cs:pc
   reg_t pc;			/*  ^  last item pushed by interrupt */
   reg_t cs;                     /*  | */
   reg_t psw;                    /*  | */
@@ -77,6 +79,8 @@ struct stackframe_s {           /* proc_ptr points here */
   reg_t ss;                     /* these are pushed by CPU during interrupt */
 };
 
+// 在386 保护模式中 段描述符
+// GDT 
 struct segdesc_s {		/* segment descriptor for protected mode */
   u16_t limit_low;
   u16_t base_low;
@@ -89,6 +93,8 @@ struct segdesc_s {		/* segment descriptor for protected mode */
 typedef unsigned long irq_policy_t;	
 typedef unsigned long irq_id_t;	
 
+// 中断处理中使用
+// 一个中断可以对应多个硬件设备 ；所以是链表
 typedef struct irq_hook {
   struct irq_hook *next;		/* next hook in chain */
   int (*handler)(struct irq_hook *);	/* interrupt handler */

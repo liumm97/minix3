@@ -69,6 +69,7 @@ begbss:
 ! link to an entity declared in the assembly code but does not create
 ! the entity.
 
+// 相当于预定义
 .define	_restart
 .define	save
 
@@ -89,6 +90,7 @@ begbss:
 .define	_page_fault
 .define	_copr_error
 
+// 中断处理
 .define	_hwint00	! handlers for hardware interrupts
 .define	_hwint01
 .define	_hwint02
@@ -106,6 +108,7 @@ begbss:
 .define	_hwint14
 .define	_hwint15
 
+// 软中断
 .define	_s_call
 .define	_p_s_call
 .define	_level0_call
@@ -118,6 +121,7 @@ begbss:
 !*===========================================================================*
 !*				MINIX					     *
 !*===========================================================================*
+// 规定的位置 boot程序在完成加载操作系统后 ，会跳转到此处
 MINIX:				! this is the entry point for the MINIX kernel
 	jmp	over_flags	! skip over the next few bytes
 	.data2	CLICK_SHIFT	! for the monitor: memory granularity
@@ -132,59 +136,86 @@ over_flags:
 
 ! Set up a C stack frame on the monitor stack.  (The monitor sets cs and ds
 ! right.  The ss descriptor still references the monitor data segment.)
+	// 引导监控程序已经使cpu 进入 保护模式
+	// 并且使cs ds 指向内核代码段和数据段
+	//  目前ss 指向引导程序 堆栈 ；所以目前使用引导程序堆栈
+	// 构造新栈帧
 	movzx	esp, sp		! monitor stack is a 16 bit stack
 	push	ebp
 	mov	ebp, esp
 	push	esi
 	push	edi
+	// ????  应该判断能不用回到引导程序
 	cmp	4(ebp), 0	! monitor return vector is
 	jz	noret		! nonzero if return possible
 	inc	(_mon_return)
+	// 把引导程序堆栈指针保存 ，以后恢复使用
 noret:	mov	(_mon_sp), esp	! save stack pointer for later return
 
 ! Copy the monitor global descriptor table to the address space of kernel and
 ! switch over to it.  Prot_init() can then update it with immediate effect.
 
+	// _gdt 表示内核预存放GDT表的地方
+	// GDT_SELECTO 是规定的 GDT 端描述符
+	// 找到目前使用的GDT表线性地址 
+    // 把其内容复制到内核_gdt中
+	// 一共复制8 个
 	sgdt	(_gdt+GDT_SELECTOR)		! get the monitor gdtr
 	mov	esi, (_gdt+GDT_SELECTOR+2)	! absolute address of GDT
 	mov	ebx, _gdt			! address of kernel GDT
 	mov	ecx, 8*8			! copying eight descriptors
 copygdt:
+	// es:esi -> ds :ebx
+	// es 指向监控程序对应段；所以能复制
  eseg	movb	al, (esi)
 	movb	(ebx), al
 	inc	esi
 	inc	ebx
 	loop	copygdt
+	// 计算_gdt 线性地址 内核数据段基值 + 偏移地址
 	mov	eax, (_gdt+DS_SELECTOR+2)	! base of kernel data
 	and	eax, 0x00FFFFFF			! only 24 bits
 	add	eax, _gdt			! eax = vir2phys(gdt)
 	mov	(_gdt+GDT_SELECTOR+2), eax	! set base of GDT
+	//  lgdt 寄存器指向目前内核 GDT 表
 	lgdt	(_gdt+GDT_SELECTOR)		! switch over to kernel GDT
 
 ! Locate boot parameters, set up kernel segment registers and stack.
+	// 加载监控程序传来的参数
 	mov	ebx, 8(ebp)	! boot parameters offset
 	mov	edx, 12(ebp)	! boot parameters length
 	mov	eax, 16(ebp)	! address of a.out headers
 	mov	(_aout), eax
+	// 所有端寄存器切换内核数据段
+	// 在minix3 中 ss 和 ds 都是一个物理段
 	mov	ax, ds		! kernel data
 	mov	es, ax
 	mov	fs, ax
 	mov	gs, ax
 	mov	ss, ax
+	// 切换到内核堆栈
 	mov	esp, k_stktop	! set sp to point to the top of kernel stack
 
 ! Call C startup code to set up a proper environment to run main().
+	// 构造start() 参数
 	push	edx
 	push	ebx
+	// ? ? ? 代码上看监控程序使用的数据段就是内核的栈段
+	// 没有文档说明
 	push	SS_SELECTOR
 	push	DS_SELECTOR
 	push	CS_SELECTOR
+	// 进入start()  函数
 	call	_cstart		! cstart(cs, ds, mds, parmoff, parmlen)
 	add	esp, 5*4
+	// GDT IDL 和进程表都已经基本构造完成
 
 ! Reload gdtr, idtr and the segment registers to global descriptor table set
 ! up by prot_init().
 
+	// 加载对应描述符
+	// gdtr 和 idtr 存在线性地址
+	// tr 存在一级段地址
 	lgdt	(_gdt+GDT_SELECTOR)
 	lidt	(_gdt+IDT_SELECTOR)
 
@@ -196,6 +227,7 @@ csinit:
 	mov	fs, ax
 	mov	gs, ax
 	mov	ss, ax
+	// 装在tr 寄存器
     o16	mov	ax, TSS_SELECTOR	! no other TSS is used
 	ltr	ax
 	push	0			! set flags to known good state
@@ -213,7 +245,7 @@ csinit:
 !*				hwint00 - 07				     *
 !*===========================================================================*
 ! Note this is a macro, it just looks like a subroutine.
-#define hwint_master(irq)	\
+define hwint_master(irq)	
 	call	save			/* save interrupted process state */;\
 	push	(_irq_handlers+4*irq)	/* irq_handlers[irq]		  */;\
 	call	_intr_handle		/* intr_handle(irq_handlers[irq]) */;\
@@ -383,23 +415,34 @@ _restart:
 
 ! Restart the current process or the next process if it is set. 
 
+	// 看看有没有下一个进程
+	// 一般中断关闭
 	cmp	(_next_ptr), 0		! see if another process is scheduled
 	jz	0f
 	mov 	eax, (_next_ptr)
 	mov	(_proc_ptr), eax	! schedule new process 
 	mov	(_next_ptr), 0
+	// 切换进程表内进程中断暂存信息的堆栈
 0:	mov	esp, (_proc_ptr)	! will assume P_STACKBASE == 0
 	lldt	P_LDT_SEL(esp)		! enable process' segment descriptors 
 	lea	eax, P_STACKTOP(esp)	! arrange for next interrupt
+	// 更改TSS 状态 ，下次中断保存进程信息
 	mov	(_tss+TSS3_S_SP0), eax	! to save state in process table
 restart1:
+	// 中断重入标识
 	decb	(_k_reenter)
+	// 弹出堆栈信息
+	// 对应 stackframe_s
     o16	pop	gs
     o16	pop	fs
     o16	pop	es
     o16	pop	ds
+	// Pop EDI, ESI, EBP, EBX, EDX, ECX, and EAX.
 	popad
 	add	esp, 4		! skip return adr
+	// 进程继续运行
+	// 内核启动结束 
+	// 初始时ss 为0 不知道为什么能运行 ？？？
 	iretd			! continue process
 
 !*===========================================================================*

@@ -26,6 +26,8 @@
  *    Oct 17, 2004   updated above and tasktab comments  (Jorrit N. Herder)
  *    May 01, 2004   changed struct for system image  (Jorrit N. Herder)
  */
+// table.h 定义和初始化了内核使用的全局变量，并分配内存
+// _TABLE 定义在 glo.h 使EXTERN 定义为空字符串 ，使全局变量进行初始化
 #define _TABLE
 
 #include "kernel.h"
@@ -35,18 +37,24 @@
 #include <ibm/int86.h>
 
 /* Define stack sizes for the kernel tasks included in the system image. */
+// 定义系统进程堆栈大小
 #define NO_STACK	0
+// sizeof(char *) 返回机器指针大小 ，一般对应机器字长度 
+// 在32位机器上返回 4
 #define SMALL_STACK	(128 * sizeof(char *))
 #define IDL_S	SMALL_STACK	/* 3 intr, 3 temps, 4 db for Intel */
 #define	HRD_S	NO_STACK	/* dummy task, uses kernel stack */
 #define	TSK_S	SMALL_STACK	/* system and clock task */
 
 /* Stack space for all the task stacks.  Declared as (char *) to align it. */
+// 定义内核需要堆栈大小 ，包含idle、内核、时钟任务和系统任务
 #define	TOT_STACK_SPACE	(IDL_S + HRD_S + (2 * TSK_S))
+// 在编译时分配对应内存空间
 PUBLIC char *t_stack[TOT_STACK_SPACE / sizeof(char *)];
 	
 /* Define flags for the various process types. */
-#define IDL_F 	(SYS_PROC | PREEMPTIBLE | BILLABLE)	/* idle task */
+// 定义进程状态
+#define IDL_F 	(SYS_PROC | PREEMPTIBLE | BILLABLE)	/* idle task */ 
 #define TSK_F 	(SYS_PROC)				/* kernel tasks */
 #define SRV_F 	(SYS_PROC | PREEMPTIBLE)		/* system services */
 #define USR_F	(BILLABLE | PREEMPTIBLE)		/* user processes */
@@ -54,6 +62,7 @@ PUBLIC char *t_stack[TOT_STACK_SPACE / sizeof(char *)];
 /* Define system call traps for the various process types. These call masks
  * determine what system call traps a process is allowed to make.
  */
+// cpu 陷入相关
 #define TSK_T	(1 << RECEIVE)			/* clock and system */
 #define SRV_T	(~0)				/* system services */
 #define USR_T   ((1 << SENDREC) | (1 << ECHO))	/* user processes */
@@ -65,6 +74,10 @@ PUBLIC char *t_stack[TOT_STACK_SPACE / sizeof(char *)];
  * can be directly copied onto map[0] of the actual send mask. Privilege
  * structure 0 is shared by user processes. 
  */
+// 消息发送相关
+// 任务和系统进程可不收限制
+// 用户可以与PM | FS | RS 发送消息 
+// 驱动可以和 USR | SYSTEM | CLOCK | LOG | TTY 
 #define s(n)		(1 << s_nr_to_id(n))
 #define SRV_M (~0)
 #define SYS_M (~0)
@@ -93,6 +106,7 @@ PUBLIC char *t_stack[TOT_STACK_SPACE / sizeof(char *)];
  * queue, allowed traps, ipc mask, and a name for the process table. The 
  * initial program counter and stack size is also provided for kernel tasks.
  */
+// 在系统镜像中的所有集成信息
 PUBLIC struct boot_image image[] = {
 /* process nr,   pc, flags, qs,  queue, stack, traps, ipcto, call,  name */ 
  { IDLE,  idle_task, IDL_F,  8, IDLE_Q, IDL_S,     0,     0,     0, "IDLE"  },

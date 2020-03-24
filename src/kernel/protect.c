@@ -119,6 +119,7 @@ PUBLIC void prot_init()
   };
 
   /* Build gdt and idt pointers in GDT where the BIOS expects them. */
+  // 重新设置GDT中的GDT描述符（主要是其中的限长，基址其实不必重置）
   dtp= (struct desctableptr_s *) &gdt[GDT_INDEX];
   * (u16_t *) dtp->limit = (sizeof gdt) - 1;
   * (u32_t *) dtp->base = vir2phys(gdt);
@@ -128,6 +129,7 @@ PUBLIC void prot_init()
   * (u32_t *) dtp->base = vir2phys(idt);
 
   /* Build segment descriptors for tasks and interrupt handlers. */
+  // 初始化内核核心代码段 数据段
   init_codeseg(&gdt[CS_INDEX],
   	 kinfo.code_base, kinfo.code_size, INTR_PRIVILEGE);
   init_dataseg(&gdt[DS_INDEX],
@@ -142,6 +144,8 @@ PUBLIC void prot_init()
    * The LDT's are allocated at compile time in the process table, and
    * initialized whenever a process' map is initialized or changed.
    */
+  // 初始化任务和系统进程LDT
+  // 任务和系统进程使用二级段描述符
   for (rp = BEG_PROC_ADDR, ldt_index = FIRST_LDT_INDEX;
        rp < END_PROC_ADDR; ++rp, ldt_index++) {
 	init_dataseg(&gdt[ldt_index], vir2phys(rp->p_ldt),
@@ -157,6 +161,10 @@ PUBLIC void prot_init()
    * current process's registers ip:cs:f:sp:ss in the correct slots in the
    * process table.
    */
+  // 构建TSS 中断时会使用
+  // sso 指向内核核心数据段 
+  // 进程表位于内核数据段
+  // 不会改变
   tss.ss0 = DS_SELECTOR;
   init_dataseg(&gdt[TSS_INDEX], vir2phys(&tss), sizeof(tss), INTR_PRIVILEGE);
   gdt[TSS_INDEX].access = PRESENT | (INTR_PRIVILEGE << DPL_SHIFT) | TSS_TYPE;
@@ -243,6 +251,7 @@ U16_t seg;
   if (! machine.protected) {
 	base = hclick_to_physb(seg);
   } else {
+    // 端地址 低三位是权限
 	segdp = &gdt[seg >> 3];
 	base =    ((u32_t) segdp->base_low << 0)
 		| ((u32_t) segdp->base_middle << 16)
@@ -301,6 +310,8 @@ struct proc *pp;
 /*===========================================================================*
  *				alloc_segments				     *
  *===========================================================================*/
+// 初始化二级段描述符表
+// 初始化指令寄存器
 PUBLIC void alloc_segments(rp)
 register struct proc *rp;
 {
@@ -313,12 +324,16 @@ register struct proc *rp;
   int privilege;
 
   if (machine.protected) {
+      // 计算数据段长度
       data_bytes = (phys_bytes) (rp->p_memmap[S].mem_vir + 
           rp->p_memmap[S].mem_len) << CLICK_SHIFT;
+      // 计算代码段长度
       if (rp->p_memmap[T].mem_len == 0)
+          // 有些小程序代码段和数据段在一起
           code_bytes = data_bytes;	/* common I&D, poor protect */
       else
           code_bytes = (phys_bytes) rp->p_memmap[T].mem_len << CLICK_SHIFT;
+      // 设置进程权限
       privilege = (iskernelp(rp)) ? TASK_PRIVILEGE : USER_PRIVILEGE;
       init_codeseg(&rp->p_ldt[CS_LDT_INDEX],
           (phys_bytes) rp->p_memmap[T].mem_phys << CLICK_SHIFT,

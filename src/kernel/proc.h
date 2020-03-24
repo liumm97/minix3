@@ -14,15 +14,22 @@
 #include "const.h"
 #include "priv.h"
  
+// 进程表 
+// 包含进程在内核所有数据
 struct proc {
+  // 进程中断时保存进程所有信息
+  // TSS 始终指向当前进程这个字段
   struct stackframe_s p_reg;	/* process' registers saved in stack frame */
+  // 二级端描述符LDT
   reg_t p_ldt_sel;		/* selector in gdt with ldt base and limit */
   struct segdesc_s p_ldt[2+NR_REMOTE_SEGS]; /* CS, DS and remote segments */
 
   proc_nr_t p_nr;		/* number of this process (for fast access) */
+  // 系统进程 1：1 用户进程指向同一个priv
   struct priv *p_priv;		/* system privileges structure */
   char p_rts_flags;		/* SENDING, RECEIVING, etc. */
 
+  // 优先级
   char p_priority;		/* current scheduling priority */
   char p_max_priority;		/* maximum scheduling priority */
   char p_ticks_left;		/* number of scheduling ticks left */
@@ -30,6 +37,7 @@ struct proc {
 
   struct mem_map p_memmap[NR_LOCAL_SEGS];   /* memory map (T, D, S) */
 
+  // 计费
   clock_t p_user_time;		/* user time in ticks */
   clock_t p_sys_time;		/* sys time in ticks */
 
@@ -46,6 +54,7 @@ struct proc {
 };
 
 /* Bits for the runtime flags. A process is runnable iff p_rts_flags == 0. */
+// 进程状态
 #define SLOT_FREE	0x01	/* process slot is free */
 #define NO_MAP		0x02	/* keeps unmapped forked child from running */
 #define SENDING		0x04	/* process blocked trying to SEND */
@@ -60,6 +69,7 @@ struct proc {
  * can be set in table.c. IDLE must have a queue for itself, to prevent low 
  * priority user processes to run round-robin with IDLE. 
  */
+// 进程调度相关
 #define NR_SCHED_QUEUES   16	/* MUST equal minimum priority + 1 */
 #define TASK_Q		   0	/* highest, used for kernel tasks */
 #define MAX_USER_Q  	   0    /* highest priority for user processes */   
@@ -68,10 +78,13 @@ struct proc {
 #define IDLE_Q		  15    /* lowest, only IDLE process goes here */
 
 /* Magic process table addresses. */
+// 定义宏获取进程表指针
 #define BEG_PROC_ADDR (&proc[0])
 #define BEG_USER_ADDR (&proc[NR_TASKS])
 #define END_PROC_ADDR (&proc[NR_TASKS + NR_PROCS])
 
+// 定义进程操作相关的宏
+// 内核进程小于0
 #define NIL_PROC          ((struct proc *) 0)		
 #define NIL_SYS_PROC      ((struct proc *) 1)		
 #define cproc_addr(n)     (&(proc + NR_TASKS)[(n)])

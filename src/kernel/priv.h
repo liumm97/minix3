@@ -16,6 +16,7 @@
 #include "const.h"
 #include "type.h"
  
+// 进程权限表
 struct priv {
   proc_nr_t s_proc_nr;		/* number of associated process */
   sys_id_t s_id;		/* index of this system structure */
@@ -32,6 +33,7 @@ struct priv {
 
   timer_t s_alarm_timer;	/* synchronous alarm timer */ 
   struct far_mem s_farmem[NR_REMOTE_SEGS];  /* remote memory map */
+  //在minix3 中 数据段和堆栈在一个物理段 ； 放置溢出
   reg_t *s_stack_guard;		/* stack guard word for kernel tasks */
 };
 
@@ -45,6 +47,7 @@ struct priv {
 #define SENDREC_BUSY	0x20	/* sendrec() in progress */
 
 /* Magic system structure table addresses. */
+// 操作特权表溢出
 #define BEG_PRIV_ADDR (&priv[0])
 #define END_PRIV_ADDR (&priv[NR_SYS_PROCS])
 

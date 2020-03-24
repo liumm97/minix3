@@ -28,27 +28,36 @@ U16_t parmoff, parmsize;	/* boot parameters offset and length */
  */
   char params[128*sizeof(char *)];		/* boot monitor parameters */
   register char *value;				/* value in key=value pair */
+  // 编译器定义的变量；用以界定边界
   extern int etext, end;
 
   /* Decide if mode is protected; 386 or higher implies protected mode.
    * This must be done first, because it is needed for, e.g., seg2phys().
    * For 286 machines we cannot decide on protected mode, yet. This is 
    * done below. 
+   *
    */
+// 32 位进入保护模式
 #if _WORD_SIZE != 2
   machine.protected = 1;	
 #endif
 
   /* Record where the kernel and the monitor are. */
+  // 存放的都是线性地址（物理地址）
+  // etext、_ etext是编译链接器预定义的外部变量，表示正文段结束后的第一个地址（正文段长）
+  // edata、_ edata则表示已初始化数据段长 
+  // end、_ end表示未初始化的bss结束后的第一个地址（数据段长）。
   kinfo.code_base = seg2phys(cs);
   kinfo.code_size = (phys_bytes) &etext;	/* size of code segment */
   kinfo.data_base = seg2phys(ds);
   kinfo.data_size = (phys_bytes) &end;		/* size of data segment */
 
   /* Initialize protected mode descriptors. */
+  // 初始化GDT
   prot_init();
 
   /* Copy the boot parameters to the local buffer. */
+  // 复制引导参数到内核
   kinfo.params_base = seg2phys(mds) + parmoff;
   kinfo.params_size = MIN(parmsize,sizeof(params)-2);
   phys_copy(kinfo.params_base, vir2phys(params), kinfo.params_size);
@@ -61,12 +70,14 @@ U16_t parmoff, parmsize;	/* boot parameters offset and length */
   strncpy(kinfo.version, OS_VERSION, sizeof(kinfo.version));
   kinfo.version[sizeof(kinfo.version)-1] = '\0';
   kinfo.proc_addr = (vir_bytes) proc;
+  // 也就是数据段地址
   kinfo.kmem_base = vir2phys(0);
   kinfo.kmem_size = (phys_bytes) &end;	
 
   /* Processor?  86, 186, 286, 386, ... 
    * Decide if mode is protected for older machines. 
    */
+  // 设置计算机结构
   machine.processor=atoi(get_value(params, "processor")); 
 #if _WORD_SIZE == 2
   machine.protected = machine.processor >= 286;		

@@ -42,17 +42,21 @@ PUBLIC void main()
   struct exec e_hdr;		/* for a copy of an a.out header */
 
   /* Initialize the interrupt controller. */
+  // 初始化中断芯片
   intr_init(1);
 
   /* Clear the process table. Anounce each slot as empty and set up mappings 
    * for proc_addr() and proc_nr() macros. Do the same for the table with 
    * privilege structures for the system processes. 
    */
+  // 小技巧 系统任务和始终任务进程号为负数
   for (rp = BEG_PROC_ADDR, i = -NR_TASKS; rp < END_PROC_ADDR; ++rp, ++i) {
   	rp->p_rts_flags = SLOT_FREE;		/* initialize free slot */
 	rp->p_nr = i;				/* proc number from ptr */
+        // c 语言技巧 pproc_adr[NR_TASK+i]
         (pproc_addr + NR_TASKS)[i] = rp;        /* proc ptr from number */
   }
+  // 初始化进程权限表·
   for (sp = BEG_PRIV_ADDR, i = 0; sp < END_PRIV_ADDR; ++sp, ++i) {
 	sp->s_proc_nr = NONE;			/* initialize as free */
 	sp->s_id = i;				/* priv structure index */
@@ -68,8 +72,10 @@ PUBLIC void main()
    */
 
   /* Task stacks. */
+  // 在table.c 声明和初始化 编译时分配内存
   ktsb = (reg_t) t_stack;
 
+  // 由table.c 初始化的进程信息和初始化进行表信息
   for (i=0; i < NR_BOOT_PROCS; ++i) {
 	ip = &image[i];				/* process' attributes */
 	rp = proc_addr(ip->proc_nr);		/* get process pointer */
@@ -85,13 +91,16 @@ PUBLIC void main()
 	priv(rp)->s_ipc_to.chunk[0] = ip->ipc_to;	/* restrict targets */
 	if (iskerneln(proc_nr(rp))) {		/* part of the kernel? */ 
 		if (ip->stksize > 0) {		/* HARDWARE stack size is 0 */
+            // 放置堆栈顶部数据放置堆栈和数据栈冲突
 			rp->p_priv->s_stack_guard = (reg_t *) ktsb;
 			*rp->p_priv->s_stack_guard = STACK_GUARD;
 		}
+        // esp  指向最高处
 		ktsb += ip->stksize;	/* point to high end of stack */
 		rp->p_reg.sp = ktsb;	/* this task's initial stack ptr */
 		text_base = kinfo.code_base >> CLICK_SHIFT;
 					/* processes that are in the kernel */
+        // 时钟任务 系统任务 和 内核 编译在一起 
 		hdrindex = 0;		/* all use the first a.out header */
 	} else {
 		hdrindex = 1 + i-NR_TASKS;	/* servers, drivers, INIT */
@@ -103,6 +112,7 @@ PUBLIC void main()
 	phys_copy(aout + hdrindex * A_MINHDR, vir2phys(&e_hdr),
 						(phys_bytes) A_MINHDR);
 	/* Convert addresses to clicks and build process memory map */
+    // 跟程序编译后内存布局有关
 	text_base = e_hdr.a_syms >> CLICK_SHIFT;
 	text_clicks = (e_hdr.a_text + CLICK_SIZE-1) >> CLICK_SHIFT;
 	if (!(e_hdr.a_flags & A_SEP)) text_clicks = 0;	   /* common I&D */
@@ -118,6 +128,7 @@ PUBLIC void main()
 	 * is different from that of other processes because tasks can
 	 * access I/O; this is not allowed to less-privileged processes 
 	 */
+    // 进程入口地点和进程状态字
 	rp->p_reg.pc = (reg_t) ip->initial_pc;
 	rp->p_reg.psw = (iskernelp(rp)) ? INIT_TASK_PSW : INIT_PSW;
 
@@ -150,6 +161,7 @@ PUBLIC void main()
    */
   bill_ptr = proc_addr(IDLE);		/* it has to point somewhere */
   announce();				/* print MINIX startup banner */
+  // 系统开启
   restart();
 }
 
