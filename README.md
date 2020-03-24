@@ -19,4 +19,6 @@ master分支主要进行源码解读
 
 随书光盘系统源代码 链接:https://pan.baidu.com/s/1lyv0VnA3HxCME10gmCtxNg  密码:qbit
 
+INTER 80386处理器程序员手册 链接:https://pan.baidu.com/s/1a54UzCN4F4w21mRYXJ4jtQ  密码:d697
+
 支持正版图书，希望大家购买正版纸质书，值得珍藏
