@@ -82,6 +82,8 @@ PUBLIC void prot_init()
 	unsigned char privilege;
   }
   gate_table[] = {
+    // 中断和异常 不连续
+    // cpu 执行时发出的异常 同步
 	{ divide_error, DIVIDE_VECTOR, INTR_PRIVILEGE },
 	{ single_step_exception, DEBUG_VECTOR, INTR_PRIVILEGE },
 	{ nmi, NMI_VECTOR, INTR_PRIVILEGE },
@@ -98,6 +100,8 @@ PUBLIC void prot_init()
 	{ general_protection, PROTECTION_VECTOR, INTR_PRIVILEGE },
 	{ page_fault, PAGE_FAULT_VECTOR, INTR_PRIVILEGE },
 	{ copr_error, COPROC_ERR_VECTOR, INTR_PRIVILEGE },
+    // 中断控制器发出的中断 异步
+    // irq ir0-irq7 0x50 + irq_num
 	{ hwint00, VECTOR( 0), INTR_PRIVILEGE },
 	{ hwint01, VECTOR( 1), INTR_PRIVILEGE },
 	{ hwint02, VECTOR( 2), INTR_PRIVILEGE },
@@ -114,6 +118,7 @@ PUBLIC void prot_init()
 	{ hwint13, VECTOR(13), INTR_PRIVILEGE },
 	{ hwint14, VECTOR(14), INTR_PRIVILEGE },
 	{ hwint15, VECTOR(15), INTR_PRIVILEGE },
+    // int 发出的软中断
 	{ s_call, SYS386_VECTOR, USER_PRIVILEGE },	/* 386 system call */
 	{ level0_call, LEVEL0_VECTOR, TASK_PRIVILEGE },
   };

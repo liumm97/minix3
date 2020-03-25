@@ -38,12 +38,30 @@ int mine;
        * one slaved at IRQ 2.  (We don't have to deal with the PC that
        * has just one controller, because it must run in real mode.)
        */
+    
+      // 初始化主芯片icw1
+      // ----------------------------------------------
+      // | 位7 | 位6 | 位5| 位4| 位3 | 位2 | 位1 | 位0 |
+      // ----------------------------------------------
+      // | 0   |  0  | 0  | 1  |  LIMI| 0 | SNGL | icw4|
+      // ----------------------------------------------
+      //    在80x86中 位5、6、7 都是0
+      //    limit 1 高位触发 0 边缘触发
+      //    SNGL 1-单个芯片 0-级联芯片
+      //    icw4 是否使用 icw4
       outb(INT_CTL, machine.ps_mca ? ICW1_PS : ICW1_AT);
+      // icw2 
+      // 低3位 是 IRQ 其余为中断码
+      /* ICW2 for master */
       outb(INT_CTLMASK, mine ? IRQ0_VECTOR : BIOS_IRQ0_VEC);
-							/* ICW2 for master */
+      // icw3 判断控制器主从关系和关联的芯片脚
+      // 0b0000 0100    关联在IRQ2
       outb(INT_CTLMASK, (1 << CASCADE_IRQ));		/* ICW3 tells slaves */
+      // cw4 比较复杂 有eio 8086
       outb(INT_CTLMASK, ICW4_AT_MASTER);
+      // 屏蔽中断 ocw0
       outb(INT_CTLMASK, ~(1 << CASCADE_IRQ));		/* IRQ 0-7 mask */
+      // 同上
       outb(INT2_CTL, machine.ps_mca ? ICW1_PS : ICW1_AT);
       outb(INT2_CTLMASK, mine ? IRQ8_VECTOR : BIOS_IRQ8_VEC);
 							/* ICW2 for slave */
@@ -60,6 +78,7 @@ int mine;
 /*===========================================================================*
  *				put_irq_handler				     *
  *===========================================================================*/
+// 向内核注册一个钩子
 PUBLIC void put_irq_handler(hook, irq, handler)
 irq_hook_t *hook;
 int irq;
@@ -75,10 +94,12 @@ irq_handler_t handler;
   line = &irq_handlers[irq];
   id = 1;
   while (*line != NULL) {
+      // 钩子已经注册
       if (hook == *line) return;	/* extra initialization */
       line = &(*line)->next;
       id <<= 1;
   }
+  // 如果int 位 32 位 ，不能超过钩子
   if (id == 0) panic("Too many handlers for irq", irq);
 
   hook->next = NULL;
@@ -87,6 +108,7 @@ irq_handler_t handler;
   hook->id = id;
   *line = hook;
 
+  // 标记irq 使用
   irq_use |= 1 << irq;
 }
 
@@ -103,7 +125,8 @@ irq_hook_t *hook;
 
   if (irq < 0 || irq >= NR_IRQ_VECTORS) 
       panic("invalid call to rm_irq_handler", irq);
-
+  // 貌似把所有处理函数都清楚了
+  // ??? 
   line = &irq_handlers[irq];
   while (*line != NULL) {
       if ((*line)->id == id) {
@@ -128,6 +151,8 @@ irq_hook_t *hook;
  */
 
   /* Call list of handlers for an IRQ. */
+  // 调用对应函数
+  // 设置对应状态
   while (hook != NULL) {
       /* For each handler in the list, mark it active by setting its ID bit,
        * call the function, and unmark it if the function returns true.

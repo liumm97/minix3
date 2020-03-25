@@ -257,6 +257,7 @@ define hwint_master(irq)
 	outb	INT_CTLMASK		/* disable the irq		  */;\
 0:	movb	al, END_OF_INT						    ;\
 	outb	INT_CTL			/* reenable master 8259		  */;\
+	// 重入 restart1 非重入 restart 
 	ret				/* restart (another) process      */
 
 ! Each of these entry points is an expansion of the hwint_master macro
@@ -296,7 +297,8 @@ _hwint07:		! Interrupt routine for irq 7 (printer)
 !*				hwint08 - 15				     *
 !*===========================================================================*
 ! Note this is a macro, it just looks like a subroutine.
-#define hwint_slave(irq)	\
+define hwint_slave(irq)	\
+	// 下调指令压入栈 ，进入到save
 	call	save			/* save interrupted process state */;\
 	push	(_irq_handlers+4*irq)	/* irq_handlers[irq]		  */;\
 	call	_intr_handle		/* intr_handle(irq_handlers[irq]) */;\
@@ -359,6 +361,7 @@ save:
     o16	push	es		! save es
     o16	push	fs		! save fs
     o16	push	gs		! save gs
+	// 硬件从tss 读取ss0并设置 ，所以ss是内核数据段
 	mov	dx, ss		! ss is kernel data segment
 	mov	ds, dx		! load rest of kernel segments
 	mov	es, dx		! kernel does not use fs, gs

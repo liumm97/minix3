@@ -80,12 +80,25 @@ struct stackframe_s {           /* proc_ptr points here */
 };
 
 // 在386 保护模式中 段描述符
-// GDT 
+// P,present位,1表示所描述的段存在(有效),为0表示所描述的段无效,使用该描述符会引起异常
+//DPL,Descriptor privilege,描述符特权级别,说明所描述段的特权级别
+//DT,描述符类型位,1说明当前描述符为存储段描述符,0为系统描述符或门描述符.
+//
+//TYPE:
+//位0:A(accessed)位,表明描述符是否已被访问;把选择子装入段寄存器时,该位被标记为1
+//位3:E(EXECUTABLE?)位,0说明所描述段为数据段;1为可执行段(代码段)
+//
+//当为数据段时,
+   //位1为W位,说明该数据段是否可写(0只读,1可写)
+   //位2为ED位,说明该段的扩展方向(0向高位扩展,1向低位扩展)
+//当为可执行段是,
+   //位1为R位,说明该执行段是否可读(0只执行,1可读)
+   //位2为C位,0说明该段不是一致码段(普通代码段),1为一致码段
 struct segdesc_s {		/* segment descriptor for protected mode */
   u16_t limit_low;
   u16_t base_low;
   u8_t base_middle;
-  u8_t access;			/* |P|DL|1|X|E|R|A| */
+  u8_t access;			/* |P|DL|1|X|E|R|A| */ 
   u8_t granularity;		/* |G|X|0|A|LIMT| */
   u8_t base_high;
 };

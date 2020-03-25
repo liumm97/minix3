@@ -56,12 +56,17 @@ unsigned vec_nr;
    * will be zero. Exceptions in interrupt handlers or system traps will make 
    * k_reenter larger than zero.
    */
+  // 如果是用户进程异常
+  // 发送对应信号
   if (k_reenter == 0 && ! iskernelp(saved_proc)) {
 	cause_sig(proc_nr(saved_proc), ep->signum);
 	return;
   }
 
   /* Exception in system code. This is not supposed to happen. */
+  // 如果是内核代码或者任务代码 
+  // 系统直接死翘翘
+  // 系统重启
   if (ep->msg == NIL_PTR || machine.processor < ep->minprocessor)
 	kprintf("\nIntel-reserved exception %d\n", vec_nr);
   else

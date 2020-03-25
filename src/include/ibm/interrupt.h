@@ -6,6 +6,7 @@
 #if (CHIP == INTEL)
 
 /* 8259A interrupt controller ports. */
+// pic d地址
 #define INT_CTL         0x20	/* I/O port for interrupt controller */
 #define INT_CTLMASK     0x21	/* setting bits in this port disables ints */
 #define INT2_CTL        0xA0	/* I/O port for second interrupt controller */
