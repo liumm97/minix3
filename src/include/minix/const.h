@@ -33,15 +33,21 @@
 #define NIL_MESS ((message *) 0)	/* null pointer */
 
 /* Memory related constants. */
+// 段选择符 16 位 
+// 在内核定义为32 位 
+// 其中低16 位原来端选择符
+// 高16 位定义为段类型 物理段、本地段、远程段 
 #define SEGMENT_TYPE  0xFF00	/* bit mask to get segment type */
 #define SEGMENT_INDEX 0x00FF	/* bit mask to get segment index */
 
+// 系统默认本地段
 #define LOCAL_SEG     0x0000	/* flags indicating local memory segment */
 #define NR_LOCAL_SEGS      3	/* # local segments per process (fixed) */
 #define T                  0	/* proc[i].mem_map[T] is for text */
 #define D                  1	/* proc[i].mem_map[D] is for data */
 #define S                  2	/* proc[i].mem_map[S] is for stack */
 
+// 远程段
 #define REMOTE_SEG    0x0100	/* flags indicating remote memory segment */
 #define NR_REMOTE_SEGS     3    /* # remote memory regions (variable) */
 

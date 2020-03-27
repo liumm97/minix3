@@ -27,6 +27,10 @@
 #include <minix/u64.h>
 
 /* Info about and entry points into the device dependent code. */
+// 设备操作 过程 
+// 1 . 工作前准备
+// 2 . 开始实际
+// 3. 结束工作准备
 struct driver {
   _PROTOTYPE( char *(*dr_name), (void) );
   _PROTOTYPE( int (*dr_open), (struct driver *dp, message *m_ptr) );

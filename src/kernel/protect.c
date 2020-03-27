@@ -15,6 +15,7 @@ struct desctableptr_s {
   char base[sizeof(u32_t)];		/* really u24_t + pad for 286 */
 };
 
+// 撞断门描述符
 struct gatedesc_s {
   u16_t offset_low;
   u16_t selector;
@@ -23,9 +24,12 @@ struct gatedesc_s {
   u16_t offset_high;
 };
 
+// 任务状态描述符
+// 基本上使用 ss0 和 sp0
 struct tss_s {
   reg_t backlink;
   reg_t sp0;                    /* stack pointer to use during interrupt */
+  // 始终是内核栈
   reg_t ss0;                    /*   "   segment  "  "    "        "     */
   reg_t sp1;
   reg_t ss1;

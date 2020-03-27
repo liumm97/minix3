@@ -1,5 +1,4 @@
-/* This task provides an interface between the kernel and user-space system
- * processes. System services can be accessed by doing a kernel call. Kernel
+/* This task provides an interface between the kernel and user-space system * processes. System services can be accessed by doing a kernel call. Kernel
  * calls are  transformed into request messages, which are handled by this
  * task. By convention, a sys_call() is transformed in a SYS_CALL request
  * message that is handled in a function named do_call(). 

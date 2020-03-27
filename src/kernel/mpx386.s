@@ -407,6 +407,7 @@ _p_s_call:
 	push	ecx		! SEND/RECEIVE/BOTH
 	call	_sys_call	! sys_call(function, src_dest, m_ptr)
 				! caller is now explicitly in proc_ptr
+	// 保留系统调用返回参数
 	mov	AXREG(esi), eax	! sys_call MUST PRESERVE si
 
 ! Fall into code to restart proc/task running.

@@ -16,6 +16,7 @@
 #include "proc.h"
 
 /* Default handler for unused kernel calls. */
+// 定义系统任务干活的函数
 _PROTOTYPE( int do_unused, (message *m_ptr) );
 _PROTOTYPE( int do_exec, (message *m_ptr) );		
 _PROTOTYPE( int do_fork, (message *m_ptr) );

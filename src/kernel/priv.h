@@ -22,15 +22,22 @@ struct priv {
   sys_id_t s_id;		/* index of this system structure */
   short s_flags;		/* PREEMTIBLE, BILLABLE, etc. */
 
+  // 系统调用掩码
   short s_trap_mask;		/* allowed system call traps */
   sys_map_t s_ipc_from;		/* allowed callers to receive from */
   sys_map_t s_ipc_to;		/* allowed destination processes */
+  // 内核调用掩码
   long s_call_mask;		/* allowed kernel calls */
 
+  // 挂起的通知位图 可知道谁给他发通知了
   sys_map_t s_notify_pending;  	/* bit map with pending notifications */
+  // 挂起的中断位图
   irq_id_t s_int_pending;	/* pending hardware interrupts */
+  // 挂起的信号位图
   sigset_t s_sig_pending;	/* pending signals */
 
+  // 定时器 系统进程有独立的定时器 
+  // 用户进程的定时器由pm 维护
   timer_t s_alarm_timer;	/* synchronous alarm timer */ 
   struct far_mem s_farmem[NR_REMOTE_SEGS];  /* remote memory map */
   //在minix3 中 数据段和堆栈在一个物理段 ； 放置溢出

@@ -141,6 +141,7 @@ message *m_ptr;				/* pointer to request message */
  *===========================================================================*/
 
 // 对中断信息编码
+// 放置中断处理程序
 PRIVATE void init_clock()
 {
   /* Initialize the CLOCK's interrupt hook. */

@@ -55,12 +55,15 @@ register message *m_ptr;	/* pointer to request message */
        * instead of bytes are used.
        */
       if (size < BYTE_GRAN_MAX) {
+          // 段长小于1M
           init_dataseg(&rp->p_ldt[EXTRA_LDT_INDEX+i], phys, size, 
           	USER_PRIVILEGE);
           selector = ((EXTRA_LDT_INDEX+i)*0x08) | (1*0x04) | USER_PRIVILEGE;
           offset = 0;
           result = OK;
       } else {
+          // 短长大于1M 
+          // 4k 对齐
           init_dataseg(&rp->p_ldt[EXTRA_LDT_INDEX+i], phys & ~0xFFFF, 0, 
           	USER_PRIVILEGE);
           selector = ((EXTRA_LDT_INDEX+i)*0x08) | (1*0x04) | USER_PRIVILEGE;

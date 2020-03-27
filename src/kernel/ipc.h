@@ -22,6 +22,7 @@
 #define ECHO		   8	/* 1 0 0 0 : echo a message */
 
 /* The following bit masks determine what checks that should be done. */
+// send | receive | echo
 #define CHECK_PTR       0x0B	/* 1 0 1 1 : validate message buffer */
 #define CHECK_DST       0x05	/* 0 1 0 1 : validate message destination */
 #define CHECK_SRC       0x02	/* 0 0 1 0 : validate message source */

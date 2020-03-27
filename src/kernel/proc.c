@@ -88,6 +88,8 @@ message *m_ptr;			/* pointer to message in the caller's space */
  * (or both). The caller is always given by 'proc_ptr'.
  */
   register struct proc *caller_ptr = proc_ptr;	/* get pointer to caller */
+  // call_nr 由两部分组成 
+  // 函数标识和 标志
   int function = call_nr & SYSCALL_FUNC;	/* get system call function */
   unsigned flags = call_nr & SYSCALL_FLAGS;	/* get flags */
   int mask_entry;				/* bit to check in send mask */
@@ -98,6 +100,9 @@ message *m_ptr;			/* pointer to message in the caller's space */
    * kernel may only be SENDREC, because tasks always reply and may not block 
    * if the caller doesn't do receive(). 
    */
+  // 验证系统调用的权限
+  // 执行系统调用的进程号不需要传入 
+  // 内核可以获得 proc_ptr
   if (! (priv(caller_ptr)->s_trap_mask & (1 << function)) || 
           (iskerneln(src_dst) && function != SENDREC
            && function != RECEIVE)) { 
@@ -107,6 +112,7 @@ message *m_ptr;			/* pointer to message in the caller's space */
   }
   
   /* Require a valid source and/ or destination process, unless echoing. */
+  // 验证目的进程有效
   if (! (isokprocn(src_dst) || src_dst == ANY || function == ECHO)) { 
       kprintf("sys_call: invalid src_dst, src_dst %d, caller %d\n", 
           src_dst, proc_nr(caller_ptr));
@@ -118,6 +124,8 @@ message *m_ptr;			/* pointer to message in the caller's space */
    * anywhere in data or stack or gap. It will have to be made more elaborate 
    * for machines which don't have the gap mapped. 
    */
+  // 验证信息是否正确
+  // 在进程的内存里边
   if (function & CHECK_PTR) {	
       vlo = (vir_bytes) m_ptr >> CLICK_SHIFT;		
       vhi = ((vir_bytes) m_ptr + MESS_SIZE - 1) >> CLICK_SHIFT;
@@ -134,6 +142,7 @@ message *m_ptr;			/* pointer to message in the caller's space */
    * verify that the caller is allowed to send to the given destination and
    * that the destination is still alive. 
    */
+  // 同上
   if (function & CHECK_DST) {	
       if (! get_sys_bit(priv(caller_ptr)->s_ipc_to, nr_to_id(src_dst))) {
           kprintf("sys_call: ipc mask denied %d sending to %d\n",
@@ -163,6 +172,9 @@ message *m_ptr;			/* pointer to message in the caller's space */
       /* fall through */
   case SEND:			
       result = mini_send(caller_ptr, src_dst, m_ptr, flags);
+      // 可能是 SENDREC 或者是 SEND
+      // 如果是 SEND 则break 
+      // 如果是 SENDREC 并且发送失败 break 否则尝试接受
       if (function == SEND || result != OK) {	
           break;				/* done, or SEND failed */
       }						/* fall through for SENDREC */
@@ -205,6 +217,13 @@ unsigned flags;				/* system call flags */
 
   /* Check for deadlock by 'caller_ptr' and 'dst' sending to each other. */
   xp = dst_ptr;
+  // 判断互相发送为死锁
+  // 感觉当目标进程正在发送消息 目的地不是自己的时候
+  // 中断不能重入
+  // 目标进程状态不能改变
+  // 是不是死锁了 
+  // 感觉是不是个bug
+  // 后续跟踪
   while (xp->p_rts_flags & SENDING) {		/* check while sending */
   	xp = proc_addr(xp->p_sendto);		/* get xp's destination */
   	if (xp == caller_ptr) return(ELOCKED);	/* deadlock if cyclic */
@@ -213,14 +232,17 @@ unsigned flags;				/* system call flags */
   /* Check if 'dst' is blocked waiting for this message. The destination's 
    * SENDING flag may be set when its SENDREC call blocked while sending.  
    */
+  // 目标进程正好在等到他发消息
   if ( (dst_ptr->p_rts_flags & (RECEIVING | SENDING)) == RECEIVING &&
        (dst_ptr->p_getfrom == ANY || dst_ptr->p_getfrom == caller_ptr->p_nr)) {
 	/* Destination is indeed waiting for this message. */
+    // 复制消息,使目标进程就绪
 	CopyMess(caller_ptr->p_nr, caller_ptr, m_ptr, dst_ptr,
 		 dst_ptr->p_messbuf);
 	if ((dst_ptr->p_rts_flags &= ~RECEIVING) == 0) enqueue(dst_ptr);
   } else if ( ! (flags & NON_BLOCKING)) {
 	/* Destination is not waiting.  Block and dequeue caller. */
+    // 目标进程没有接受 ，把消息指针放到进程表 阻塞
 	caller_ptr->p_messbuf = m_ptr;
 	if (caller_ptr->p_rts_flags == 0) dequeue(caller_ptr);
 	caller_ptr->p_rts_flags |= SENDING;

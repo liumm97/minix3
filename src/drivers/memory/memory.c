@@ -104,6 +104,7 @@ int device;
 /*===========================================================================*
  *				m_transfer				     *
  *===========================================================================*/
+// 可以处理多个请求
 PRIVATE int m_transfer(proc_nr, opcode, position, iov, nr_req)
 int proc_nr;			/* process doing the request */
 int opcode;			/* DEV_GATHER or DEV_SCATTER */
@@ -159,9 +160,11 @@ unsigned nr_req;		/* length of request vector */
 	    mem_phys = cv64ul(dv->dv_base) + position;
 
 	    if (opcode == DEV_GATHER) {			/* copy data */
+            //  读mem 设备
 	        sys_physcopy(NONE, PHYS_SEG, mem_phys, 
 	        	proc_nr, D, user_vir, count);
 	    } else {
+            // 写入mem 设备
 	        sys_physcopy(proc_nr, D, user_vir, 
 	        	NONE, PHYS_SEG, mem_phys, count);
 	    }
@@ -172,6 +175,7 @@ unsigned nr_req;		/* length of request vector */
 	    if (opcode == DEV_GATHER) {
 	        left = count;
 	    	while (left > 0) {
+                // 每次从头复制
 	    	    chunk = (left > ZERO_BUF_SIZE) ? ZERO_BUF_SIZE : left;
 	    	    if (OK != (s=sys_vircopy(SELF, D, (vir_bytes) dev_zero, 
 	    	            proc_nr, D, user_vir, chunk)))
@@ -227,6 +231,10 @@ PRIVATE void m_init()
   /* Install remote segment for /dev/kmem memory. */
   m_geom[KMEM_DEV].dv_base = cvul64(kinfo.kmem_base);
   m_geom[KMEM_DEV].dv_size = cvul64(kinfo.kmem_size);
+  // 设置对应远程端
+  // 返回远程端index ,段标识符和偏移量
+  // 目的只需要设置进程的远程段标识符LDT 返回的段端选择符和偏移量不关心 放在s丢弃
+  // 为了内核使用时能找到对应描述符
   if (OK != (s=sys_segctl(&m_seg[KMEM_DEV], (u16_t *) &s, (vir_bytes *) &s, 
   		kinfo.kmem_base, kinfo.kmem_size))) {
       panic("MEM","Couldn't install remote segment.",s);
@@ -261,6 +269,7 @@ PRIVATE void m_init()
 /*===========================================================================*
  *				m_ioctl					     *
  *===========================================================================*/
+// 只能被fs 使用创建ram 盘
 PRIVATE int m_ioctl(dp, m_ptr)
 struct driver *dp;			/* pointer to driver structure */
 message *m_ptr;				/* pointer to control message */
@@ -285,6 +294,8 @@ message *m_ptr;				/* pointer to control message */
 
 	/* Try to allocate a piece of memory for the RAM disk. */
 	ramdev_size = m_ptr->POSITION;
+        // fs -> drive -> pm 
+        // 给PM 发送消息分配内存
         if (allocmem(ramdev_size, &ramdev_base) < 0) {
             report("MEM", "warning, allocmem failed", errno);
             return(ENOMEM);

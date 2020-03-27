@@ -163,6 +163,8 @@ _PROTOTYPE( char *crypt, (const char *_key, const char *_salt)		);
 _PROTOTYPE( int getsysinfo, (int who, int what, void *where)		);
 _PROTOTYPE( int getprocnr, (void)					);
 _PROTOTYPE( int findproc, (char *proc_name, int *proc_nr)		);
+// 在系统链接库里 实现在/usr/src/lib/other
+// 给MM 发送消息
 _PROTOTYPE( int allocmem, (phys_bytes size, phys_bytes *base)		);
 _PROTOTYPE( int freemem, (phys_bytes size, phys_bytes base)		);
 #define DEV_MAP 1
