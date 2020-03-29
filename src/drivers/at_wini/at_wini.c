@@ -26,11 +26,13 @@
 /* I/O Ports used by winchester disk controllers. */
 
 /* Read and write registers */
+// 主板上一般集成两个控制器
 #define REG_CMD_BASE0	0x1F0	/* command base register of controller 0 */
 #define REG_CMD_BASE1	0x170	/* command base register of controller 1 */
 #define REG_CTL_BASE0	0x3F6	/* control base register of controller 0 */
 #define REG_CTL_BASE1	0x376	/* control base register of controller 1 */
 
+// 控制器各寄存器偏移量
 #define REG_DATA	    0	/* data register (offset from the base reg.) */
 #define REG_PRECOMP	    1	/* start of write precompensation */
 #define REG_COUNT	    2	/* sectors to transfer */
@@ -43,6 +45,7 @@
 #define   ldh_init(drive)	(LDH_DEFAULT | ((drive) << 4))
 
 /* Read only registers */
+// 状态寄存器（读）
 #define REG_STATUS	    7	/* status */
 #define   STATUS_BSY		0x80	/* controller busy */
 #define	  STATUS_RDY		0x40	/* drive ready */
@@ -53,6 +56,7 @@
 #define	  STATUS_IDX		0x02	/* index pulse */
 #define	  STATUS_ERR		0x01	/* error */
 #define	  STATUS_ADMBSY	       0x100	/* administratively busy (software) */
+// 错误寄存器（读）
 #define REG_ERROR	    1	/* error code */
 #define	  ERROR_BB		0x80	/* bad block */
 #define	  ERROR_ECC		0x40	/* bad ecc bytes */
@@ -62,6 +66,7 @@
 #define	  ERROR_DM		0x01	/* no data address mark */
 
 /* Write only registers */
+// 磁盘操作命令（写）
 #define REG_COMMAND	    7	/* command */
 #define   CMD_IDLE		0x00	/* for w_command: drive idle */
 #define   CMD_RECALIBRATE	0x10	/* recalibrate drive */
@@ -75,6 +80,8 @@
 #define   CMD_DIAG		0x90	/* execute device diagnostics */
 #define   CMD_SPECIFY		0x91	/* specify parameters */
 #define   ATA_IDENTIFY		0xEC	/* identify drive */
+
+// 硬盘控制器控制寄存器 写 
 /* #define REG_CTL		0x206	*/ /* control register */
 #define REG_CTL		0	/* control register */
 #define   CTL_NORETRY		0x80	/* disable access retry */
@@ -83,6 +90,7 @@
 #define   CTL_RESET		0x04	/* reset controller */
 #define   CTL_INTDISABLE	0x02	/* disable interrupts */
 
+// 硬盘控制器状态寄存器
 #define REG_STATUS          7   /* status */
 #define   STATUS_BSY            0x80    /* controller busy */
 #define   STATUS_DRDY           0x40    /* drive ready */
@@ -99,6 +107,7 @@
 #define SENSE_PACKETSIZE	18
 
 /* Common command block */
+// 操作命令
 struct command {
   u8_t	precomp;	/* REG_PRECOMP, etc. */
   u8_t	count;
@@ -122,6 +131,7 @@ struct command {
 #define MAX_SECS	 256	/* controller can transfer this many sectors */
 #define MAX_ERRORS         4	/* how often to try rd/wt before quitting */
 #define NR_MINORS       (MAX_DRIVES * DEV_PER_DRIVE)
+
 #define SUB_PER_DRIVE	(NR_PARTITIONS * NR_PARTITIONS)
 #define NR_SUBDEVS	(MAX_DRIVES * SUB_PER_DRIVE)
 #define DELAY_USECS     1000	/* controller timeout in microseconds */
@@ -140,7 +150,8 @@ struct command {
 int timeout_ticks = DEF_TIMEOUT_TICKS, max_errors = MAX_ERRORS;
 int wakeup_ticks = WAKEUP;
 long w_standard_timeouts = 0, w_pci_debug = 0, w_instance = 0,
- w_lba48 = 0, atapi_debug = 0;
+irq_need_ack;    /* irq needs to be acknowledged */
+    int irq_hook_id; w_lba48 = 0, atapi_debug = 0;
 
 int w_testing = 0, w_silent = 0;
 
@@ -152,6 +163,7 @@ int w_next_drive = 0;
  * controller 0 is always the 'compatability' ide controller, at
  * the fixed locations, whether present or not.
  */
+// 逻辑磁盘结构
 PRIVATE struct wini {		/* main drive struct, one entry per drive */
   unsigned state;		/* drive state: deaf, initialized, dead */
   unsigned w_status;		/* device status register */
@@ -162,13 +174,23 @@ PRIVATE struct wini {		/* main drive struct, one entry per drive */
   unsigned irq_need_ack;	/* irq needs to be acknowledged */
   int irq_hook_id;		/* id of irq hook at the kernel */
   int lba48;			/* supports lba48 */
+  // 磁道数
+  // 磁道从外到内标号 0 开始
   unsigned lcylinders;		/* logical number of cylinders (BIOS) */
+  // 逻辑磁头个数
   unsigned lheads;		/* logical number of heads */
+  // 每个磁道扇区
   unsigned lsectors;		/* logical number of sectors per track */
   unsigned pcylinders;		/* physical number of cylinders (translated) */
   unsigned pheads;		/* physical number of heads */
   unsigned psectors;		/* physical number of sectors per track */
   unsigned ldhpref;		/* top four bytes of the LDH (head) register */
+  // 预补偿柱面
+  // 在向硬盘写入时，由于记录密度很高，相邻的两个信息存储区域由于磁化后相互吸引或相互排斥，
+  // 使它们之间有可能互相干涉，如连续写入两个1时有可能产生叠加，以至读出时，数据无法分离或丢失数据。
+  // 盘片的内圈（高磁道）比外圈（低磁道）的位密度高，上述情况更容易发生。
+  // 所谓预写补偿是指在写入时，偏离正常的位置（前移或后移），使得写入的磁化区域在完成相互排斥或吸引后，
+  // 其实际位置恰好是正确的读出位置。预写补偿柱面是需预补偿写入的第一个柱面，其值由厂商的产品说明中给出
   unsigned precomp;		/* write precompensation cylinder / 4 */
   unsigned max_count;		/* max request for this drive */
   unsigned open_ct;		/* in-use count */
@@ -200,7 +222,7 @@ FORWARD _PROTOTYPE( int w_io_test, (void) 				);
 FORWARD _PROTOTYPE( int w_transfer, (int proc_nr, int opcode, off_t position,
 					iovec_t *iov, unsigned nr_req) 	);
 FORWARD _PROTOTYPE( int com_out, (struct command *cmd) 			);
-FORWARD _PROTOTYPE( void w_need_reset, (void) 				);
+FORWARD _w_do_openPROTOTYPE( void w_need_reset, (void) 				);
 FORWARD _PROTOTYPE( void ack_irqs, (unsigned int) 			);
 FORWARD _PROTOTYPE( int w_do_close, (struct driver *dp, message *m_ptr) );
 FORWARD _PROTOTYPE( int w_other, (struct driver *dp, message *m_ptr) 	);
@@ -437,10 +459,13 @@ message *m_ptr;
   /* If we haven't identified it yet, or it's gone deaf, 
    * (re-)identify it.
    */
+  // 没有进行磁盘识别
   if (!(wn->state & IDENTIFIED) || (wn->state & DEAF)) {
 	/* Try to identify the device. */
 	if (w_identify() != OK) {
+        // 识别失败 重启设备
 		if (wn->state & DEAF) w_reset();
+        // 设备重启失败 标记不可用
 		wn->state = IGNORING;
 		return(ENXIO);
 	}
@@ -461,6 +486,7 @@ message *m_ptr;
   /* Partition the drive if it's being opened for the first time,
    * or being opened after being closed.
    */
+   // 设置设备分区表
   if (wn->open_ct == 0) {
 
 	/* Partition the disk. */
@@ -475,6 +501,7 @@ message *m_ptr;
 /*===========================================================================*
  *				w_prepare				     *
  *===========================================================================*/
+// 找到设备号对应的物理硬盘和逻辑设备
 PRIVATE struct device *w_prepare(int device)
 {
 /* Prepare for I/O on a device. */
@@ -482,12 +509,17 @@ struct wini *prev_wn;
 prev_wn = w_wn;
   w_device = device;
 
+  // 主分区
   if (device < NR_MINORS) {			/* d0, d0p[0-3], d1, ... */
+    // 磁盘驱动号号
 	w_drive = device / DEV_PER_DRIVE;	/* save drive number */
+    // 对应的wn
 	w_wn = &wini[w_drive];
+    // 逻辑设备 (主分区)
 	w_dv = &w_wn->part[device % DEV_PER_DRIVE];
   } else
-  if ((unsigned) (device -= MINOR_d0p0s0) < NR_SUBDEVS) {/*d[0-7]p[0-3]s[0-3]*/
+  // 子分区
+   if ((unsigned) (device -= MINOR_d0p0s0) < NR_SUBDEVS) {/*d[0-7]p[0-3]s[0-3]*/
 	w_drive = device / SUB_PER_DRIVE;
 	w_wn = &wini[w_drive];
 	w_dv = &w_wn->subpart[device % SUB_PER_DRIVE];
@@ -527,6 +559,7 @@ PRIVATE int w_identify()
 	wn->state |= SMART;
 
 	/* Device information. */
+    // 解析硬盘信息
 	if ((s=sys_insw(wn->base_cmd + REG_DATA, SELF, tmp_buf, SECTOR_SIZE)) != OK)
 		panic(w_name(),"Call to sys_insw() failed", s);
 
@@ -673,6 +706,7 @@ PRIVATE int w_io_test(void)
 /*===========================================================================*
  *				w_specify				     *
  *===========================================================================*/
+// 初始化控制器
 PRIVATE int w_specify()
 {
 /* Routine to initialize the drive after boot or when a reset is needed. */
@@ -695,6 +729,7 @@ PRIVATE int w_specify()
 	if (com_simple(&cmd) != OK) return(ERR);
 
 	if (!(wn->state & SMART)) {
+        // 重新校验驱动
 		/* Calibrate an old disk. */
 		cmd.sector  = 0;
 		cmd.cyl_lo  = 0;
@@ -712,6 +747,8 @@ PRIVATE int w_specify()
 /*===========================================================================*
  *				do_transfer				     *
  *===========================================================================*/
+// 给控制器传输命令 告诉要读写了
+// wn    写补偿磁道  扇区数量 扇区启示位置 命令
 PRIVATE int do_transfer(struct wini *wn, unsigned int precomp, unsigned int count,
 	unsigned int sector, unsigned int opcode)
 {
@@ -725,11 +762,13 @@ PRIVATE int do_transfer(struct wini *wn, unsigned int precomp, unsigned int coun
 	if (w_lba48 && wn->lba48) {
 	} else  */
 	if (wn->ldhpref & LDH_LBA) {
+        // 磁道、扇区寻址
 		cmd.sector  = (sector >>  0) & 0xFF;
 		cmd.cyl_lo  = (sector >>  8) & 0xFF;
 		cmd.cyl_hi  = (sector >> 16) & 0xFF;
 		cmd.ldh     = wn->ldhpref | ((sector >> 24) & 0xF);
 	} else {
+        // 逻辑寻址
   		int cylinder, head, sec;
 		cylinder = sector / secspcyl;
 		head = (sector % secspcyl) / wn->psectors;
@@ -740,12 +779,14 @@ PRIVATE int do_transfer(struct wini *wn, unsigned int precomp, unsigned int coun
 		cmd.ldh     = wn->ldhpref | head;
 	}
 
+    // 发送命令
 	return com_out(&cmd);
 }
 
 /*===========================================================================*
  *				w_transfer				     *
  *===========================================================================*/
+// 进行实际的读写磁盘
 PRIVATE int w_transfer(proc_nr, opcode, position, iov, nr_req)
 int proc_nr;			/* process doing the request */
 int opcode;			/* DEV_GATHER or DEV_SCATTER */
@@ -761,6 +802,7 @@ unsigned nr_req;		/* length of request vector */
   unsigned cylinder, head, sector, nbytes;
 
   /* Check disk address. */
+  // 检查扇区对其
   if ((position & SECTOR_MASK) != 0) return(EINVAL);
 
   errors = 0;
@@ -769,13 +811,17 @@ unsigned nr_req;		/* length of request vector */
 	/* How many bytes to transfer? */
 	nbytes = 0;
 	for (iop = iov; iop < iov_end; iop++) nbytes += iop->iov_size;
+    // 检查扇区对齐
 	if ((nbytes & SECTOR_MASK) != 0) return(EINVAL);
 
 	/* Which block on disk and how close to EOF? */
+
 	if (position >= dv_size) return(OK);		/* At EOF */
 	if (position + nbytes > dv_size) nbytes = dv_size - position;
+    // 计算扇区数
 	block = div64u(add64ul(w_dv->dv_base, position), SECTOR_SIZE);
 
+    // 最大读写数量
 	if (nbytes >= wn->max_count) {
 		/* The drive can't do more then max_count at once. */
 		nbytes = wn->max_count;
@@ -785,10 +831,12 @@ unsigned nr_req;		/* length of request vector */
 	if (!(wn->state & INITIALIZED) && w_specify() != OK) return(EIO);
 
 	/* Tell the controller to transfer nbytes bytes. */
+    // 开始传输数据
 	r = do_transfer(wn, wn->precomp, ((nbytes >> SECTOR_SHIFT) & BYTE),
 		block, opcode);
 
 	while (r == OK && nbytes > 0) {
+        // 对于每个扇区读写 等到一个中断
 		/* For each sector, wait for an interrupt and fetch the data
 		 * (read), or supply data to the controller and wait for an
 		 * interrupt (write).
@@ -799,24 +847,24 @@ unsigned nr_req;		/* length of request vector */
 			if ((r = at_intr_wait()) != OK) {
 				/* An error, send data to the bit bucket. */
 				if (w_wn->w_status & STATUS_DRQ) {
-	if ((s=sys_insw(wn->base_cmd + REG_DATA, SELF, tmp_buf, SECTOR_SIZE)) != OK)
-		panic(w_name(),"Call to sys_insw() failed", s);
+                    if ((s=sys_insw(wn->base_cmd + REG_DATA, SELF, tmp_buf, SECTOR_SIZE)) != OK)
+                        panic(w_name(),"Call to sys_insw() failed", s);
 				}
 				break;
 			}
 		}
 
 		/* Wait for data transfer requested. */
+        // 传输出错
 		if (!w_waitfor(STATUS_DRQ, STATUS_DRQ)) { r = ERR; break; }
 
 		/* Copy bytes to or from the device's buffer. */
 		if (opcode == DEV_GATHER) {
-	if ((s=sys_insw(wn->base_cmd + REG_DATA, proc_nr, (void *) iov->iov_addr, SECTOR_SIZE)) != OK)
-		panic(w_name(),"Call to sys_insw() failed", s);
+            if ((s=sys_insw(wn->base_cmd + REG_DATA, proc_nr, (void *) iov->iov_addr, SECTOR_SIZE)) != OK)
+                panic(w_name(),"Call to sys_insw() failed", s);
 		} else {
-	if ((s=sys_outsw(wn->base_cmd + REG_DATA, proc_nr, (void *) iov->iov_addr, SECTOR_SIZE)) != OK)
-		panic(w_name(),"Call to sys_insw() failed", s);
-
+            if ((s=sys_outsw(wn->base_cmd + REG_DATA, proc_nr, (void *) iov->iov_addr, SECTOR_SIZE)) != OK)
+                panic(w_name(),"Call to sys_insw() failed", s);
 			/* Data sent, wait for an interrupt. */
 			if ((r = at_intr_wait()) != OK) break;
 		}
@@ -864,9 +912,12 @@ struct command *cmd;		/* Command block */
   }
 
   /* Select drive. */
+  // 选择 驱动器
+  // 一个控制器可以操作两个驱动器 主驱动器和副驱动器
   if ((s=sys_outb(base_cmd + REG_LDH, cmd->ldh)) != OK)
   	panic(w_name(),"Couldn't write register to select drive",s);
 
+  // 看看选择好没？？
   if (!w_waitfor(STATUS_BSY, 0)) {
 	printf("%s: com_out: drive not ready\n", w_name());
 	return(ERR);
@@ -878,8 +929,10 @@ struct command *cmd;		/* Command block */
    * controller was not able to execute the command. Leftover timeouts are
    * simply ignored by the main loop. 
    */
+  // 设置定时器,放置出现异常
   sys_setalarm(wakeup_ticks, 0);
 
+  // 执行磁盘操作
   wn->w_status = STATUS_ADMBSY;
   w_command = cmd->command;
   pv_set(outbyte[0], base_ctl + REG_CTL, wn->pheads >= 8 ? CTL_EIGHTHEADS : 0);
@@ -944,18 +997,21 @@ struct command *cmd;		/* Command block */
 /*===========================================================================*
  *				w_timeout				     *
  *===========================================================================*/
+// 磁盘操作命令超时
 PRIVATE void w_timeout(void)
 {
   struct wini *wn = w_wn;
 
   switch (w_command) {
   case CMD_IDLE:
+    // 无命令 什么都不做
 	break;		/* fine */
   case CMD_READ:
   case CMD_WRITE:
 	/* Impossible, but not on PC's:  The controller does not respond. */
 
 	/* Limiting multisector I/O seems to help. */
+    // 改变一下读写的大小
 	if (wn->max_count > 8 * SECTOR_SIZE) {
 		wn->max_count = 8 * SECTOR_SIZE;
 	} else {
@@ -974,6 +1030,7 @@ PRIVATE void w_timeout(void)
 /*===========================================================================*
  *				w_reset					     *
  *===========================================================================*/
+// 磁盘复位
 PRIVATE int w_reset()
 {
 /* Issue a reset to the controller.  This is done after any catastrophe,
@@ -989,6 +1046,8 @@ PRIVATE int w_reset()
   tickdelay(RECOVERY_TICKS);
 
   /* Strobe reset bit */
+  // 向磁盘设备控制寄存器   
+  // SRST为软件复位，该位为1 等一段时间 在置0
   if ((s=sys_outb(wn->base_ctl + REG_CTL, CTL_RESET)) != OK)
   	panic(w_name(),"Couldn't strobe reset bit",s);
   tickdelay(DELAY_TICKS);
@@ -997,16 +1056,18 @@ PRIVATE int w_reset()
   tickdelay(DELAY_TICKS);
 
   /* Wait for controller ready */
+  // 读取硬盘状态 看看复位成功没
   if (!w_waitfor(STATUS_BSY, 0)) {
 	printf("%s: reset failed, drive busy\n", w_name());
 	return(ERR);
   }
 
   /* The error register should be checked now, but some drives mess it up. */
-
   for (wn = wini; wn < &wini[MAX_DRIVES]; wn++) {
 	if (wn->base_cmd == w_wn->base_cmd) {
+        // 取消reset 标记
 		wn->state &= ~DEAF;
+        // 启动磁盘对应的中断钩子
   		if (w_wn->irq_need_ack) {
 		    	/* Make sure irq is actually enabled.. */
 	  		sys_irqenable(&w_wn->irq_hook_id);
@@ -1021,6 +1082,8 @@ PRIVATE int w_reset()
 /*===========================================================================*
  *				w_intr_wait				     *
  *===========================================================================*/
+// 等待一次磁盘操作完成
+// 等待磁盘中断到来
 PRIVATE void w_intr_wait()
 {
 /* Wait for a task completion interrupt. */

@@ -52,6 +52,10 @@ struct driver {
 #if (CHIP == INTEL)
 
 /* Number of bytes you can DMA before hitting a 64K boundary: */
+// phys = x + n1+n2+n3+n4 
+// 上一个64k 边界 位 x+ 1 0 0 0 0
+// 所以phys 距离下一个64k 边界 = 0x 10000 - (n1+n2+n3+4)
+// 即下边定义的宏
 #define dma_bytes_left(phys)    \
    ((unsigned) (sizeof(int) == 2 ? 0 : 0x10000) - (unsigned) ((phys) & 0xFFFF))
 

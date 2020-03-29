@@ -31,11 +31,14 @@ int style;		/* partitioning style: floppy, primary, sub. */
 int atapi;		/* atapi device */
 {
 /* This routine is called on first open to initialize the partition tables
- * of a device.  It makes sure that each partition falls safely within the
+ * of a device.  It makes sure part_limitthat each partition falls safely within the
  * device's limits.  Depending on the partition style we are either making
  * floppy partitions, primary partitions or subpartitions.  Only primary
  * partitions are sorted, because they are shared with other operating
  * systems that expect this.
+ * 在首次打开时调用此例程以初始化设备的分区表。 确保每个分区都安全地位于设备的限制之内。
+ *  根据分区样式，我们可以制作软盘分区，主分区或子分区。
+ *  仅对主分区进行排序，因为它们与期望该分区的其他操作系统共享。
  */
   struct part_entry table[NR_PARTITIONS], *pe;
   int disk, par;
@@ -74,6 +77,7 @@ int atapi;		/* atapi device */
   /* Set the geometry of the partitions from the partition table. */
   for (par = 0; par < NR_PARTITIONS; par++, dv++) {
 	/* Shrink the partition to fit within the device. */
+    // 分区大小肯定在上级分区以内
 	pe = &table[par];
 	part_limit = pe->lowsec + pe->size;
 	if (part_limit < pe->lowsec) part_limit = limit;
@@ -81,15 +85,18 @@ int atapi;		/* atapi device */
 	if (pe->lowsec < base) pe->lowsec = base;
 	if (part_limit < pe->lowsec) part_limit = pe->lowsec;
 
+    // 设置分区逻辑位置（bytes）
 	dv->dv_base = mul64u(pe->lowsec, SECTOR_SIZE);
 	dv->dv_size = mul64u(part_limit - pe->lowsec, SECTOR_SIZE);
 
 	if (style == P_PRIMARY) {
 		/* Each Minix primary partition can be subpartitioned. */
+        // 设置子分区
 		if (pe->sysind == MINIX_PART)
 			partition(dp, device + par, P_SUB, atapi);
 
 		/* An extended partition has logical partitions. */
+        // 拓展分区
 		if (ext_part(pe->sysind))
 			extpartition(dp, device + par, pe->lowsec);
 	}
@@ -169,10 +176,12 @@ struct part_entry *table;	/* four entries */
   if (iovec1.iov_size != 0) {
 	return 0;
   }
+  // 判断是不是分区表
   if (partbuf[510] != 0x55 || partbuf[511] != 0xAA) {
 	/* Invalid partition table. */
 	return 0;
   }
+  // 复制磁盘里分区表结构
   memcpy(table, (partbuf + PART_TABLE_OFF), NR_PARTITIONS * sizeof(table[0]));
   return 1;
 }
@@ -188,6 +197,8 @@ struct part_entry *table;
   int n = NR_PARTITIONS;
 
   do {
+    // 简单排序 
+    // 非法分区放在最后
 	for (pe = table; pe < table + NR_PARTITIONS-1; pe++) {
 		if (pe[0].sysind == NO_PART
 			|| (pe[0].lowsec > pe[1].lowsec

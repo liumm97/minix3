@@ -20,6 +20,7 @@ _PROTOTYPE( void partition, (struct driver *dr, int device, int style, int atapi
 #define DEV_PER_DRIVE	(1 + NR_PARTITIONS)
 #define MINOR_t0	64
 #define MINOR_r0	120
+// 第一个子分区 标识
 #define MINOR_d0p0s0	128
 #define MINOR_fd0p0	(28<<2)
 #define P_FLOPPY	0
