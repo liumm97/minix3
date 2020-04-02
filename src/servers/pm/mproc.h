@@ -26,11 +26,13 @@ EXTERN struct mproc {
   gid_t mp_effgid;		/* process' effective gid */
 
   /* File identification for sharing. */
+  // 进程对应的磁盘程序文件信息
   ino_t mp_ino;			/* inode number of file */
   dev_t mp_dev;			/* device number of file system */
   time_t mp_ctime;		/* inode changed time */
 
   /* Signal handling information. */
+  // 信号处理相关定义
   sigset_t mp_ignore;		/* 1 means ignore the signal, 0 means don't */
   sigset_t mp_catch;		/* 1 means catch the signal, 0 means don't */
   sigset_t mp_sig2mess;		/* 1 means transform into notify message */

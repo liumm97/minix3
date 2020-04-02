@@ -36,6 +36,7 @@ typedef struct tty {
   int tty_eotct;		/* number of "line breaks" in input queue */
   devfun_t tty_devread;		/* routine to read from low level buffers */
   devfun_t tty_icancel;		/* cancel any device input */
+  // 要求读入的行数（熟模式）| 字数（生模式）
   int tty_min;			/* minimum requested #chars in input queue */
   timer_t tty_tmr;		/* the timer for this tty */
 
@@ -47,13 +48,16 @@ typedef struct tty {
 
   /* Terminal parameters and status. */
   int tty_position;		/* current position on the screen for echoing */
+  // 标志回显
   char tty_reprint;		/* 1 when echoed input messed up, else 0 */
+  // 后边字符不转义
   char tty_escaped;		/* 1 when LNEXT (^V) just seen, else 0 */
   char tty_inhibited;		/* 1 when STOP (^S) just seen (stops output) */
   char tty_pgrp;		/* slot number of controlling process */
   char tty_openct;		/* count of number of opens of this tty */
 
   /* Information about incomplete I/O requests is stored here. */
+  // 与输入相关的信息
   char tty_inrepcode;		/* reply code, TASK_REPLY or REVIVE */
   char tty_inrevived;		/* set to 1 if revive callback is pending */
   char tty_incaller;		/* process that made the call (usually FS) */
@@ -61,6 +65,8 @@ typedef struct tty {
   vir_bytes tty_in_vir;		/* virtual address where data is to go */
   int tty_inleft;		/* how many chars are still needed */
   int tty_incum;		/* # chars input so far */
+
+  // 输出相关的信息
   char tty_outrepcode;		/* reply code, TASK_REPLY or REVIVE */
   char tty_outrevived;		/* set to 1 if revive callback is pending */
   char tty_outcaller;		/* process that made the call (usually FS) */
@@ -68,6 +74,8 @@ typedef struct tty {
   vir_bytes tty_out_vir;	/* virtual address where data comes from */
   int tty_outleft;		/* # chars yet to be output */
   int tty_outcum;		/* # chars output so far */
+
+  // ioctl
   char tty_iocaller;		/* process that made the call (usually FS) */
   char tty_ioproc;		/* process that wants to do an ioctl */
   int tty_ioreq;		/* ioctl request code */
