@@ -417,30 +417,31 @@ char c;				/* next character in escape sequence */
 	cons->c_esc_intro = '\0';
 	cons->c_esc_parmp = bufend(cons->c_esc_parmv);
 	do {
+        // 初始化值
 		*--cons->c_esc_parmp = 0;
 	} while (cons->c_esc_parmp > cons->c_esc_parmv);
 	switch (c) {
 	    case '[':	/* Control Sequence Introducer */
-		cons->c_esc_intro = c;
-		cons->c_esc_state = 2;
-		break;
+            cons->c_esc_intro = c;
+            cons->c_esc_state = 2;
+            break;
 	    case 'M':	/* Reverse Index */
-		do_escape(cons, c);
-		break;
+            do_escape(cons, c);
+            break;
 	    default:
-		cons->c_esc_state = 0;
+            cons->c_esc_state = 0;
 	}
 	break;
 
     case 2:			/* ESC [ seen */
 	if (c >= '0' && c <= '9') {
+        // 转化成真的值
 		if (cons->c_esc_parmp < bufend(cons->c_esc_parmv))
 			*cons->c_esc_parmp = *cons->c_esc_parmp * 10 + (c-'0');
-	} else
-	if (c == ';') {
+	} else if (c == ';') { // 添加参数
 		if (cons->c_esc_parmp < bufend(cons->c_esc_parmv))
 			cons->c_esc_parmp++;
-	} else {
+	} else { // 转义已经结束
 		do_escape(cons, c);
 	}
 	break;

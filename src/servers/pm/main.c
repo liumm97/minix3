@@ -169,6 +169,7 @@ PRIVATE void pm_init()
   /* Build the set of signals which cause core dumps, and the set of signals
    * that are by default ignored.
    */
+  // 初始化全局的忽略信号和转储信号
   sigemptyset(&core_sset);
   for (sig_ptr = core_sigs; sig_ptr < core_sigs+sizeof(core_sigs); sig_ptr++)
 	sigaddset(&core_sset, *sig_ptr);

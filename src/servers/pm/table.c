@@ -11,8 +11,10 @@
 #include "param.h"
 
 /* Miscellaneous */
+// 转储文件；
 char core_name[] = "core";	/* file name where core images are produced */
 
+// 订单进程管理器提供的系统调用
 _PROTOTYPE (int (*call_vec[NCALLS]), (void) ) = {
 	no_sys,		/*  0 = unused	*/
 	do_pm_exit,	/*  1 = exit	*/
