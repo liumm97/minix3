@@ -126,24 +126,37 @@ struct command {
 #define WAKEUP		(32*HZ)	/* drive may be out for 31 seconds max */
 
 /* Miscellaneous. */
+// 支持最大驱动
 #define MAX_DRIVES         8
+// 兼容驱动
 #define COMPAT_DRIVES      4
+// 控制器最大可以传输多少扇区
 #define MAX_SECS	 256	/* controller can transfer this many sectors */
+// 读写出错 重试次数
 #define MAX_ERRORS         4	/* how often to try rd/wt before quitting */
+// 主分区数量
 #define NR_MINORS       (MAX_DRIVES * DEV_PER_DRIVE)
 
+// 一个驱动最多多少子分区
 #define SUB_PER_DRIVE	(NR_PARTITIONS * NR_PARTITIONS)
+// 子分区数量
 #define NR_SUBDEVS	(MAX_DRIVES * SUB_PER_DRIVE)
 #define DELAY_USECS     1000	/* controller timeout in microseconds */
 #define DELAY_TICKS 	   1	/* controller timeout in ticks */
 #define DEF_TIMEOUT_TICKS 	300	/* controller timeout in ticks */
 #define RECOVERY_USECS 500000	/* controller recovery time in microseconds */
 #define RECOVERY_TICKS    30	/* controller recovery time in ticks */
+// 驱动已经初始化
 #define INITIALIZED	0x01	/* drive is initialized */
+// 控制器重置
 #define DEAF		0x02	/* controller must be reset */
+// 磁盘驱动
 #define SMART		0x04	/* drive supports ATA commands */
+// cd-drive
 #define ATAPI		   0	/* don't bother with ATAPI; optimise out */
+// 设备识别成功
 #define IDENTIFIED	0x10	/* w_identify done successfully */
+// 驱动识别失败
 #define IGNORING	0x20	/* w_identify failed once */
 
 /* Timeouts and max retries. */
@@ -194,6 +207,7 @@ PRIVATE struct wini {		/* main drive struct, one entry per drive */
   unsigned precomp;		/* write precompensation cylinder / 4 */
   unsigned max_count;		/* max request for this drive */
   unsigned open_ct;		/* in-use count */
+  // 比分区多一个 part[0] 代表磁盘本身
   struct device part[DEV_PER_DRIVE];	/* disks and partitions */
   struct device subpart[SUB_PER_DRIVE];	/* subpartitions */
 } wini[MAX_DRIVES], *w_wn;
@@ -206,8 +220,10 @@ PRIVATE char w_id_string[40];
 PRIVATE int win_tasknr;			/* my task number */
 PRIVATE int w_command;			/* current command in execution */
 PRIVATE u8_t w_byteval;			/* used for SYS_IRQCTL */
+// d对应的磁盘驱动
 PRIVATE int w_drive;			/* selected drive */
 PRIVATE int w_controller;		/* selected controller */
+// 逻辑设备对应的位置和大小
 PRIVATE struct device *w_dv;		/* device's base and size */
 
 FORWARD _PROTOTYPE( void init_params, (void) 				);
@@ -267,6 +283,9 @@ PUBLIC int main()
 /*===========================================================================*
  *				init_params				     *
  *===========================================================================*/
+// 内核启动时加载磁盘驱动程序调用
+// 采用延迟初始化
+// 只把bios 磁盘信息读出来 ，不进行实际磁盘读取
 PRIVATE void init_params()
 {
 /* This routine is called at startup to initialize the drive parameters. */
@@ -285,29 +304,36 @@ PRIVATE void init_params()
   env_parse("ata_lba48", "d", 0, &w_lba48, 0, 1);
   env_parse("atapi_debug", "d", 0, &atapi_debug, 0, 1);
 
+  // 不考虑pci 数据总线连接的控制器
   if (w_instance == 0) {
 	  /* Get the number of drives from the BIOS data area */
+      // 读出BIOS 磁盘信息
 	  if ((s=sys_vircopy(SELF, BIOS_SEG, NR_HD_DRIVES_ADDR, 
  		 	SELF, D, (vir_bytes) params, NR_HD_DRIVES_SIZE)) != OK)
   		panic(w_name(), "Couldn't read BIOS", s);
+      // 和计算机结构有关
 	  if ((nr_drives = params[0]) > 2) nr_drives = 2;
 
+      // bios 硬盘数应该不是连续的
 	  for (drive = 0, wn = wini; drive < COMPAT_DRIVES; drive++, wn++) {
 		if (drive < nr_drives) {
 		    /* Copy the BIOS parameter vector */
 		    vector = (drive == 0) ? BIOS_HD0_PARAMS_ADDR:BIOS_HD1_PARAMS_ADDR;
 		    size = (drive == 0) ? BIOS_HD0_PARAMS_SIZE:BIOS_HD1_PARAMS_SIZE;
+            // 
 		    if ((s=sys_vircopy(SELF, BIOS_SEG, vector,
 					SELF, D, (vir_bytes) parv, size)) != OK)
   				panic(w_name(), "Couldn't read BIOS", s);
 	
 			/* Calculate the address of the parameters and copy them */
+            // 计算BIOS 磁盘位置；复制信息
   			if ((s=sys_vircopy(
   				SELF, BIOS_SEG, hclick_to_physb(parv[1]) + parv[0],
   				SELF, D, (phys_bytes) params, 16L))!=OK)
   			    panic(w_name(),"Couldn't copy parameters", s);
 	
 			/* Copy the parameters to the structures of the drive */
+            // 解析磁盘的磁头、磁道、磁头、和预写磁道
 			wn->lcylinders = bp_cylinders(params);
 			wn->lheads = bp_heads(params);
 			wn->lsectors = bp_sectors(params);
@@ -315,6 +341,7 @@ PRIVATE void init_params()
 		}
 
 		/* Fill in non-BIOS parameters. */
+        // 设置 wn ,相当于啥也没干
 		init_drive(wn,
 			drive < 2 ? REG_CMD_BASE0 : REG_CMD_BASE1,
 			drive < 2 ? REG_CTL_BASE0 : REG_CTL_BASE1,
@@ -441,12 +468,16 @@ PRIVATE void init_params_pci(int skip)
 /*===========================================================================*
  *				w_do_open				     *
  *===========================================================================*/
+// 打开设备
 PRIVATE int w_do_open(dp, m_ptr)
 struct driver *dp;
 message *m_ptr;
 {
 /* Device open: Initialize the controller and read the partition table. */
+    
 
+  // 打开磁盘设备
+  // 第一次打开 初始化分区
   struct wini *wn;
 
   if (w_prepare(m_ptr->DEVICE) == NIL_DEV) return(ENXIO);
@@ -460,6 +491,7 @@ message *m_ptr;
    * (re-)identify it.
    */
   // 没有进行磁盘识别
+  // 或者磁盘必须重置
   if (!(wn->state & IDENTIFIED) || (wn->state & DEAF)) {
 	/* Try to identify the device. */
 	if (w_identify() != OK) {
@@ -474,6 +506,8 @@ message *m_ptr;
 	   * due to no CD being in the drive). If it fails, ignore
 	   * the device forever.
 	   */
+      // 不是cd-drive 尝试读取
+      // 读取失败 设置忽视
 	  if (!(wn->state & ATAPI) && w_io_test() != OK) {
   		wn->state |= IGNORING;
 	  	return(ENXIO);
@@ -502,6 +536,7 @@ message *m_ptr;
  *				w_prepare				     *
  *===========================================================================*/
 // 找到设备号对应的物理硬盘和逻辑设备
+// 
 PRIVATE struct device *w_prepare(int device)
 {
 /* Prepare for I/O on a device. */
@@ -509,7 +544,7 @@ struct wini *prev_wn;
 prev_wn = w_wn;
   w_device = device;
 
-  // 主分区
+  // 设置号小于主分区总数 所以是主分区
   if (device < NR_MINORS) {			/* d0, d0p[0-3], d1, ... */
     // 磁盘驱动号号
 	w_drive = device / DEV_PER_DRIVE;	/* save drive number */
@@ -520,6 +555,7 @@ prev_wn = w_wn;
   } else
   // 子分区
    if ((unsigned) (device -= MINOR_d0p0s0) < NR_SUBDEVS) {/*d[0-7]p[0-3]s[0-3]*/
+    // 同上
 	w_drive = device / SUB_PER_DRIVE;
 	w_wn = &wini[w_drive];
 	w_dv = &w_wn->subpart[device % SUB_PER_DRIVE];
@@ -552,6 +588,7 @@ PRIVATE int w_identify()
 			|((u32_t) id_byte(n)[3] << 24))
 
   /* Try to identify the device. */
+  // 对驱动器输入对应指令 识别设备
   cmd.ldh     = wn->ldhpref;
   cmd.command = ATA_IDENTIFY;
   if (com_simple(&cmd) == OK) {
@@ -611,6 +648,7 @@ PRIVATE int w_identify()
 	/* Not an ATA device; no translations, no special features.  Don't
 	 * touch it unless the BIOS knows about it.
 	 */
+    // 用bios 参数填充
 	if (wn->lcylinders == 0) { return(ERR); }	/* no BIOS parameters */
 	wn->pcylinders = wn->lcylinders;
 	wn->pheads = wn->lheads;

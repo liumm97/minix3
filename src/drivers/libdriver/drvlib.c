@@ -24,6 +24,7 @@ FORWARD _PROTOTYPE( void sort, (struct part_entry *table) );
 /*============================================================================*
  *				partition				      *
  *============================================================================*/
+// 读取设备分区表
 PUBLIC void partition(dp, device, style, atapi)
 struct driver *dp;	/* device dependent entry points */
 int device;		/* device to partition */
@@ -66,12 +67,16 @@ int atapi;		/* atapi device */
 	device += 1;
 	break;
   case P_SUB:
+    // 磁盘设备号
 	disk = device / DEV_PER_DRIVE;
+    // 分区设备号
 	par = device % DEV_PER_DRIVE - 1;
+    // 子分区对应设备号
 	device = MINOR_d0p0s0 + (disk * NR_PARTITIONS + par) * NR_PARTITIONS;
   }
 
   /* Find an array of devices. */
+  // 计算起始位置
   if ((dv = (*dp->dr_prepare)(device)) == NIL_DEV) return;
 
   /* Set the geometry of the partitions from the partition table. */

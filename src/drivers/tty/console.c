@@ -106,7 +106,6 @@ PRIVATE console_t *curcons;	/* currently visible */
 #define color	(vid_port == C_6845)
 
 /* Map from ANSI colors to the attributes used by the PC */
-PRIVATE int ansi_colors[8] = {0, 4, 2, 6, 1, 5, 3, 7};
 
 /* Structure used for font management */
 struct sequence {
@@ -414,34 +413,34 @@ char c;				/* next character in escape sequence */
 
   switch (cons->c_esc_state) {
     case 1:			/* ESC seen */
-	cons->c_esc_intro = '\0';
-	cons->c_esc_parmp = bufend(cons->c_esc_parmv);
-	do {
-		*--cons->c_esc_parmp = 0;
-	} while (cons->c_esc_parmp > cons->c_esc_parmv);
-	switch (c) {
-	    case '[':	/* Control Sequence Introducer */
-		cons->c_esc_intro = c;
-		cons->c_esc_state = 2;
-		break;
+        cons->c_esc_intro = '\0';
+        cons->c_esc_parmp = bufend(cons->c_esc_parmv);
+        do {
+            *--cons->c_esc_parmp = 0;
+        } while (cons->c_esc_parmp > cons->c_esc_parmv);
+        switch (c) {
+            case '[':	/* Control Sequence Introducer */
+            cons->c_esc_intro = c;
+            cons->c_esc_state = 2;
+            break;
 	    case 'M':	/* Reverse Index */
-		do_escape(cons, c);
-		break;
+            do_escape(cons, c);
+            break;
 	    default:
-		cons->c_esc_state = 0;
-	}
-	break;
+            cons->c_esc_state = 0;
+        }
+        break;
 
     case 2:			/* ESC [ seen */
-	if (c >= '0' && c <= '9') {
+        if (c >= '0' && c <= '9') {
 		if (cons->c_esc_parmp < bufend(cons->c_esc_parmv))
 			*cons->c_esc_parmp = *cons->c_esc_parmp * 10 + (c-'0');
-	} else
-	if (c == ';') {
-		if (cons->c_esc_parmp < bufend(cons->c_esc_parmv))
-			cons->c_esc_parmp++;
-	} else {
-		do_escape(cons, c);
+        } else
+        if (c == ';') {
+            if (cons->c_esc_parmp < bufend(cons->c_esc_parmv))
+                cons->c_esc_parmp++;
+        } else {
+            do_escape(cons, c);
 	}
 	break;
   }
