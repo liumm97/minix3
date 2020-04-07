@@ -126,6 +126,7 @@ struct driver *dp;	/* Device dependent entry points. */
  *===========================================================================*/
 // 初始化DMA buffer 
 // DMA buffer 不能跨国64k 边界
+// 书中代码没有使用DMA ,有点坑
 PRIVATE void init_buffer()
 {
 /* Select a buffer that can safely be used for DMA transfers.  It may also
