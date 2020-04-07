@@ -554,6 +554,8 @@ phys_bytes seg_bytes0;		/* how much is to be transferred? */
 /*===========================================================================*
  *				find_share				     *
  *===========================================================================*/
+// 根据可执行问价的i节点信息已创建时间看看有没有程序执行这个文件
+// 只对分离的程序执行
 PUBLIC struct mproc *find_share(mp_ign, ino, dev, ctime)
 struct mproc *mp_ign;		/* process that should not be looked at */
 ino_t ino;			/* parameters that uniquely identify a file */

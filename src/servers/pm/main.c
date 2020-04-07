@@ -181,6 +181,8 @@ PRIVATE void pm_init()
    * Parse the list of free memory chunks. This list is what the boot monitor 
    * reported, but it must be corrected for the kernel and system processes.
    */
+  // 获取引导镜像参数和内核信息
+  // 解析内存使用情况
   if ((s=sys_getmonparams(monitor_params, sizeof(monitor_params))) != OK)
       panic(__FILE__,"get monitor params failed",s);
   get_mem_chunks(mem_chunks);
@@ -200,6 +202,7 @@ PRIVATE void pm_init()
   	panic(__FILE__,"couldn't get image table: %d\n", s);
   procs_in_use = 0;				/* start populating table */
   printf("Building process table:");		/* show what's happening */
+  // 根据镜像中信息构造进程表
   for (ip = &image[0]; ip < &image[NR_BOOT_PROCS]; ip++) {		
   	if (ip->proc_nr >= 0) {			/* task have negative nrs */
   		procs_in_use += 1;		/* found user process */
@@ -209,6 +212,7 @@ PRIVATE void pm_init()
   		strncpy(rmp->mp_name, ip->proc_name, PROC_NAME_LEN); 
 		rmp->mp_parent = RS_PROC_NR;
 		rmp->mp_nice = get_nice_value(ip->priority);
+        // init 进程
 		if (ip->proc_nr == INIT_PROC_NR) {	/* user process */
   			rmp->mp_pid = INIT_PID;
 			rmp->mp_flags |= IN_USE; 
@@ -308,9 +312,14 @@ struct memory *mem_chunks;			/* store mem chunks here */
   for (i = 0; i < NR_MEMS && !done; i++) {
 	memp = &mem_chunks[i];		/* next mem chunk is stored here */
 	base = size = 0;		/* initialize next base:size pair */
+    // 解析 b0:s0,b1:s1,b2:s2
 	if (*s != 0) {			/* get fresh data, unless at end */	
 
 	    /* Read fresh base and expect colon as next char. */ 
+        // strtoul()会将参数nptr字符串根据参数base来转换成无符号的长整型数
+            // nptr-- 要转换为无符号长整数的字符串。
+            // endptr-- 对类型为 char* 的对象的引用，其值由函数设置为 nptr 中数值后的下一个字符。
+            // base-- 基数，必须介于 2 和 36（包含）之间，或者是特殊值 0。
 	    base = strtoul(s, &end, 0x10);		/* get number */
 	    if (end != s && *end == ':') s = ++end;	/* skip ':' */ 
 	    else *s=0;			/* terminate, should not happen */
@@ -321,9 +330,12 @@ struct memory *mem_chunks;			/* store mem chunks here */
 	    else done = 1;
 	}
 	limit = base + size;	
+    // base 选择下一个块边界
 	base = (base + CLICK_SIZE-1) & ~(long)(CLICK_SIZE-1);
+    // limit 选择 上一个块边界
 	limit &= ~(long)(CLICK_SIZE-1);
 	if (limit <= base) continue;
+    // 已块为计数单位
 	memp->base = base >> CLICK_SHIFT;
 	memp->size = (limit - base) >> CLICK_SHIFT;
   }
@@ -342,6 +354,7 @@ struct mem_map *map_ptr;			/* memory to remove */
  * the memory lists. The servers and init have their own memory
  * spaces and their memory will be removed from the list. 
  */
+  // 移除内核使用的内存
   struct memory *memp;
   for (memp = mem_chunks; memp < &mem_chunks[NR_MEMS]; memp++) {
 	if (memp->base == map_ptr[T].mem_phys) {

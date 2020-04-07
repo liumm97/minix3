@@ -42,7 +42,9 @@ PUBLIC int do_brk()
   vir_clicks new_clicks;
 
   rmp = mp;
+  // 获取新的段 limit
   v = (vir_bytes) m_in.addr;
+  // 获取下一个边界地址
   new_clicks = (vir_clicks) ( ((long) v + CLICK_SIZE - 1) >> CLICK_SHIFT);
   if (new_clicks < rmp->mp_seg[D].mem_vir) {
 	rmp->mp_reply.reply_ptr = (char *) -1;
