@@ -22,6 +22,7 @@
 /*===========================================================================*
  *				alloc_bit				     *
  *===========================================================================*/
+// 在位图中从起始位图中找到一个未使用的
 PUBLIC bit_t alloc_bit(sp, map, origin)
 struct super_block *sp;		/* the filesystem to allocate from */
 int map;			/* IMAP (inode map) or ZMAP (zone map) */
@@ -40,6 +41,7 @@ bit_t origin;			/* number of bit to start searching at */
   if (sp->s_rd_only)
 	panic(__FILE__,"can't allocate bit on read-only filesys.", NO_NUM);
 
+  // 根据IMAP 和 ZMAP 设置对应信息
   if (map == IMAP) {
 	start_block = START_BLOCK;
 	map_bits = sp->s_ninodes + 1;
@@ -58,22 +60,28 @@ bit_t origin;			/* number of bit to start searching at */
   word = (origin % FS_BITS_PER_BLOCK(sp->s_block_size)) / FS_BITCHUNK_BITS;
 
   /* Iterate over all blocks plus one, because we start in the middle. */
+  // 遍历块的数量 防止重复遍历
   bcount = bit_blocks + 1;
   do {
+    // 获取对应数据块
 	bp = get_block(sp->s_dev, start_block + block, NORMAL);
+    // 找到块的结束位置
 	wlim = &bp->b_bitmap[FS_BITMAP_CHUNKS(sp->s_block_size)];
 
 	/* Iterate over the words in block. */
 	for (wptr = &bp->b_bitmap[word]; wptr < wlim; wptr++) {
 
 		/* Does this word contain a free bit? */
+        // 位图子块全部正在使用 寻找下一个块
 		if (*wptr == (bitchunk_t) ~0) continue;
 
 		/* Find and allocate the free bit. */
+        // 找到未使用的位置
 		k = conv2(sp->s_native, (int) *wptr);
 		for (i = 0; (k & (1 << i)) != 0; ++i) {}
 
 		/* Bit number from the start of the bit map. */
+        // 计算对应的位置
 		b = ((bit_t) block * FS_BITS_PER_BLOCK(sp->s_block_size))
 		    + (wptr - &bp->b_bitmap[0]) * FS_BITCHUNK_BITS
 		    + i;
@@ -82,12 +90,14 @@ bit_t origin;			/* number of bit to start searching at */
 		if (b >= map_bits) break;
 
 		/* Allocate and return bit number. */
+        // 回写信息
 		k |= 1 << i;
 		*wptr = conv2(sp->s_native, (int) k);
 		bp->b_dirt = DIRTY;
 		put_block(bp, MAP_BLOCK);
 		return(b);
 	}
+    //  没找到 ,试一试下一个块
 	put_block(bp, MAP_BLOCK);
 	if (++block >= bit_blocks) block = 0;	/* last block, wrap around */
 	word = 0;
@@ -98,6 +108,7 @@ bit_t origin;			/* number of bit to start searching at */
 /*===========================================================================*
  *				free_bit				     *
  *===========================================================================*/
+// 释放bit_returned 对位的位置
 PUBLIC void free_bit(sp, map, bit_returned)
 struct super_block *sp;		/* the filesystem to operate on */
 int map;			/* IMAP (inode map) or ZMAP (zone map) */
@@ -118,31 +129,37 @@ bit_t bit_returned;		/* number of bit to insert into the map */
   } else {
 	start_block = START_BLOCK + sp->s_imap_blocks;
   }
+  // 找到对应的位图所在的便宜块和偏移字
   block = bit_returned / FS_BITS_PER_BLOCK(sp->s_block_size);
   word = (bit_returned % FS_BITS_PER_BLOCK(sp->s_block_size))
   	 / FS_BITCHUNK_BITS;
 
+  // 字里对应的位置
   bit = bit_returned % FS_BITCHUNK_BITS;
   mask = 1 << bit;
 
   bp = get_block(sp->s_dev, start_block + block, NORMAL);
 
+  // 未使用位图不能释放
   k = conv2(sp->s_native, (int) bp->b_bitmap[word]);
   if (!(k & mask)) {
 	panic(__FILE__,map == IMAP ? "tried to free unused inode" :
 	      "tried to free unused block", NO_NUM);
   }
 
+  // 把对应位置置零
   k &= ~mask;
   bp->b_bitmap[word] = conv2(sp->s_native, (int) k);
   bp->b_dirt = DIRTY;
 
+  // 回写保存
   put_block(bp, MAP_BLOCK);
 }
 
 /*===========================================================================*
  *				get_super				     *
  *===========================================================================*/
+// 从超级块列表中获取超级块
 PUBLIC struct super_block *get_super(dev)
 dev_t dev;			/* device number whose super_block is sought */
 {
@@ -165,6 +182,7 @@ dev_t dev;			/* device number whose super_block is sought */
 /*===========================================================================*
  *				get_block_size				     *
  *===========================================================================*/
+// 获取磁盘块的大小
 PUBLIC int get_block_size(dev_t dev)
 {
 /* Search the superblock table for this device. */
@@ -187,6 +205,7 @@ PUBLIC int get_block_size(dev_t dev)
 /*===========================================================================*
  *				mounted					     *
  *===========================================================================*/
+// 判断给定的i节点是否被挂载
 PUBLIC int mounted(rip)
 register struct inode *rip;	/* pointer to inode */
 {
@@ -207,6 +226,7 @@ register struct inode *rip;	/* pointer to inode */
 /*===========================================================================*
  *				read_super				     *
  *===========================================================================*/
+// 读取和解析超级块信息
 PUBLIC int read_super(sp)
 register struct super_block *sp; /* pointer to a superblock */
 {
@@ -229,6 +249,7 @@ register struct super_block *sp; /* pointer to a superblock */
   magic = sp->s_magic;		/* determines file system type */
 
   /* Get file system version and type. */
+  // 获取文件系统和字节序列
   if (magic == SUPER_MAGIC || magic == conv2(BYTE_SWAP, SUPER_MAGIC)) {
 	version = V1;
 	native  = (magic == SUPER_MAGIC);
@@ -244,6 +265,7 @@ register struct super_block *sp; /* pointer to a superblock */
 
   /* If the super block has the wrong byte order, swap the fields; the magic
    * number doesn't need conversion. */
+  // 进行字节顺序转化
   sp->s_ninodes =       conv4(native, sp->s_ninodes);
   sp->s_nzones =        conv2(native, (int) sp->s_nzones);
   sp->s_imap_blocks =   conv2(native, (int) sp->s_imap_blocks);

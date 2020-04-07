@@ -44,6 +44,7 @@ int flags;			/* mode bits and flags */
    * open/close routine.  (This is the only routine that must check the
    * device number for being in range.  All others can trust this check.)
    */
+  // 获取主设备号 并验证
   major = (dev >> MAJOR) & BYTE;
   if (major >= NR_DEVICES) major = 0;
   dp = &dmap[major];
