@@ -53,8 +53,11 @@ PUBLIC void pm_expire_timers(clock_t now)
 	clock_t next_time;
 
 	/* Check for expired timers and possibly reschedule an alarm. */
+    // 调用src/lib/times 定时器框架
+    // 判定到期的定时器 ，执行对应的函数 返回下一次的到期时间
 	tmrs_exptimers(&pm_timers, now, &next_time);
 	if (next_time > 0) {
+        // 设置内核定时器
 		if (sys_setalarm(next_time, 1) != OK)
 			panic(__FILE__, "PM expire timer couldn't set alarm.", NO_NUM);
 	}

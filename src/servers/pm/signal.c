@@ -236,6 +236,7 @@ sigset_t sig_map;
   pid_t proc_id, id;
 
   rmp = &mproc[proc_nr];
+  // 进程僵死
   if ((rmp->mp_flags & (IN_USE | ZOMBIE)) != IN_USE) return;
   proc_id = rmp->mp_pid;
   mp = &mproc[0];			/* pretend signals are from PM */

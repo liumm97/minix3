@@ -84,6 +84,8 @@ phys_clicks clicks;		/* amount of memory requested */
 /*===========================================================================*
  *				free_mem				     *
  *===========================================================================*/
+// 释放内存信息 进入未使用内存节点链表里 
+// 在这过程中 ，看看左右节点能否合并
 PUBLIC void free_mem(base, clicks)
 phys_clicks base;		/* base address of block to free */
 phys_clicks clicks;		/* number of clicks to free */
@@ -96,6 +98,7 @@ phys_clicks clicks;		/* number of clicks to free */
   register struct hole *hp, *new_ptr, *prev_ptr;
 
   if (clicks == 0) return;
+  // 取出一个空slot
   if ( (new_ptr = free_slots) == NIL_HOLE) 
   	panic(__FILE__,"hole table full", NO_NUM);
   new_ptr->h_base = base;
@@ -107,6 +110,7 @@ phys_clicks clicks;		/* number of clicks to free */
    * available, or if no holes are currently available, put this hole on the
    * front of the hole list.
    */
+  // 内存最小 ，插到头部
   if (hp == NIL_HOLE || base <= hp->h_base) {
 	/* Block to be freed goes on front of the hole list. */
 	new_ptr->h_next = hp;
@@ -116,6 +120,7 @@ phys_clicks clicks;		/* number of clicks to free */
   }
 
   /* Block to be returned does not go on front of hole list. */
+  // 找到合适的位置 ，插入节点
   prev_ptr = NIL_HOLE;
   while (hp != NIL_HOLE && base > hp->h_base) {
 	prev_ptr = hp;
@@ -125,12 +130,14 @@ phys_clicks clicks;		/* number of clicks to free */
   /* We found where it goes.  Insert block after 'prev_ptr'. */
   new_ptr->h_next = prev_ptr->h_next;
   prev_ptr->h_next = new_ptr;
+  // 从 上一个列表节点检测能否合并 能合并节点不超过三个
   merge(prev_ptr);		/* sequence is 'prev_ptr', 'new_ptr', 'hp' */
 }
 
 /*===========================================================================*
  *				del_slot				     *
  *===========================================================================*/
+// 从内存空洞列表中删除一个slot
 PRIVATE void del_slot(prev_ptr, hp)
 /* pointer to hole entry just ahead of 'hp' */
 register struct hole *prev_ptr;
@@ -154,6 +161,8 @@ register struct hole *hp;
 /*===========================================================================*
  *				merge					     *
  *===========================================================================*/
+// 开一看空洞内存块能不能合并
+// 因为 hp 是 插入节点的上一个节点 ,所以一次检测下两个节点
 PRIVATE void merge(hp)
 register struct hole *hp;	/* ptr to hole to merge with its successors */
 {
@@ -205,9 +214,15 @@ phys_clicks *free;		/* memory size summaries */
   register struct hole *hp;
 
   /* Put all holes on the free list. */
+  // 设计思想 
+  // 假装chunks 里的内存 都是已使用的 
+  // 然后一次一次释放一个chunks ,形成未使用内存链表
+  // 链表里的节点都是编译时创建的 不是动态创建的 所以需要free_slots 指向未使用的slot
   for (hp = &hole[0]; hp < &hole[NR_HOLES]; hp++) hp->h_next = hp + 1;
   hole[NR_HOLES-1].h_next = NIL_HOLE;
+  // 指向空闲内存列表
   hole_head = NIL_HOLE;
+  // 指向未使用sotts 列表 ，回收内存时直接取 防止创建元素
   free_slots = &hole[0];
 
   /* Use the chunks of physical memory to allocate holes. */

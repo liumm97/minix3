@@ -53,6 +53,7 @@ PUBLIC int main()
 	get_work();		/* wait for an PM system call */
 
 	/* Check for system notifications first. Special cases. */
+    // 定时器到期 ， 检测定时器
 	if (call_nr == SYN_ALARM) {
 		pm_expire_timers(m_in.NOTIFY_TIMESTAMP);
 		result = SUSPEND;		/* don't reply */
@@ -97,6 +98,8 @@ PUBLIC int main()
 /*===========================================================================*
  *				get_work				     *
  *===========================================================================*/
+// 获取消息 解析消息内容
+// 来自内核消息 相当于pm 本身
 PRIVATE void get_work()
 {
 /* Wait for the next message and extract useful information from it. */
