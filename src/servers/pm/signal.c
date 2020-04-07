@@ -429,18 +429,20 @@ int signo;			/* signal to send to process (1 to _NSIG) */
 		goto doterminate;
 
 	rmp->mp_sigmask |= rmp->mp_sigact[signo].sa_mask;
+    // catch 是否阻塞信号
 	if (sigflags & SA_NODEFER)
 		sigdelset(&rmp->mp_sigmask, signo);
 	else
 		sigaddset(&rmp->mp_sigmask, signo);
 
+    // 每次信号catch 是否重新注册信号
 	if (sigflags & SA_RESETHAND) {
 		sigdelset(&rmp->mp_catch, signo);
 		rmp->mp_sigact[signo].sa_handler = SIG_DFL;
 	}
 
+    // 通知内核，修改程序执行流程
 	if (OK == (s=sys_sigsend(slot, &sm))) {
-
 		sigdelset(&rmp->mp_sigpending, signo);
 		/* If process is hanging on PAUSE, WAIT, SIGSUSPEND, tty, 
 		 * pipe, etc., release it.

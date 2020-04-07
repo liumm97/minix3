@@ -42,6 +42,7 @@ PUBLIC int do_fork()
   * way through is such a nuisance.
   */
   rmp = mp;
+  // 进程表没有solt
   if ((procs_in_use == NR_PROCS) || 
   		(procs_in_use >= NR_PROCS-LAST_FEW && rmp->mp_effuid != 0))
   {
@@ -58,6 +59,7 @@ PUBLIC int do_fork()
   if ( (child_base = alloc_mem(prog_clicks)) == NO_MEM) return(ENOMEM);
 
   /* Create a copy of the parent's core image for the child. */
+  // 复制内存镜像
   child_abs = (phys_bytes) child_base << CLICK_SHIFT;
   parent_abs = (phys_bytes) rmp->mp_seg[D].mem_phys << CLICK_SHIFT;
   s = sys_abscopy(parent_abs, child_abs, prog_bytes);

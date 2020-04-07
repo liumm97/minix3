@@ -46,6 +46,7 @@ EXTERN struct super_block {
   unsigned s_inodes_per_block;	/* precalculated from magic number */
   dev_t s_dev;			/* whose super block is this? */
   int s_rd_only;		/* set to 1 iff file sys mounted read only */
+  // 磁盘字节数据和系统字节数据不匹配（比如高字节和低字节） 进行转换
   int s_native;			/* set to 1 iff not byte swapped file system */
   int s_version;		/* file system version, zero means bad magic */
   int s_ndzones;		/* # direct zones in an inode */
