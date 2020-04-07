@@ -16,9 +16,12 @@
 
 EXTERN struct buf {
   /* Data portion of the buffer. */
+  // 存放磁盘里的数据
   union {
+    // 原始数据
     char b__data[MAX_BLOCK_SIZE];		     /* ordinary user data */
 /* directory block */
+    // 存放目录信息
     struct direct b__dir[NR_DIR_ENTRIES(MAX_BLOCK_SIZE)];    
 /* V1 indirect block */
     zone1_t b__v1_ind[V1_INDIRECTS];	     
@@ -36,8 +39,11 @@ EXTERN struct buf {
   struct buf *b_next;		/* used to link all free bufs in a chain */
   struct buf *b_prev;		/* used to link all free bufs the other way */
   struct buf *b_hash;		/* used to link bufs on hash chains */
+  // 块编号
   block_t b_blocknr;		/* block number of its (minor) device */
+  // 设备号
   dev_t b_dev;			/* major | minor device where block resides */
+  // 标注块是不是改写了 丢弃时是否写入磁盘
   char b_dirt;			/* CLEAN or DIRTY */
   char b_count;			/* number of users of this buffer */
 } buf[NR_BUFS];

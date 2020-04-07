@@ -31,6 +31,8 @@ FORWARD _PROTOTYPE( void new_icopy, (struct inode *rip, d2_inode *dip,
 /*===========================================================================*
  *				get_inode				     *
  *===========================================================================*/
+// 读取磁盘上的ｉ节点　
+// 放到内存上
 PUBLIC struct inode *get_inode(dev, numb)
 dev_t dev;			/* device on which inode resides */
 int numb;			/* inode number (ANSI: may not be unshort) */
@@ -42,6 +44,8 @@ int numb;			/* inode number (ANSI: may not be unshort) */
   register struct inode *rip, *xp;
 
   /* Search the inode table both for (dev, numb) and a free slot. */
+  // 先从内存中找一找　看一看存在不
+  // 并且找一个slot 为了保存i 节点信息
   xp = NIL_INODE;
   for (rip = &inode[0]; rip < &inode[NR_INODES]; rip++) {
 	if (rip->i_count > 0) { /* only check used slots for (dev, numb) */
@@ -56,12 +60,14 @@ int numb;			/* inode number (ANSI: may not be unshort) */
   }
 
   /* Inode we want is not currently in use.  Did we find a free slot? */
+  // 没有slot  可打开文件满了
   if (xp == NIL_INODE) {	/* inode table completely full */
 	err_code = ENFILE;
 	return(NIL_INODE);
   }
 
   /* A free inode slot has been located.  Load the inode into it. */
+  // 从磁盘中获取
   xp->i_dev = dev;
   xp->i_num = numb;
   xp->i_count = 1;
@@ -74,6 +80,7 @@ int numb;			/* inode number (ANSI: may not be unshort) */
 /*===========================================================================*
  *				put_inode				     *
  *===========================================================================*/
+// 释放内存inode
 PUBLIC void put_inode(rip)
 register struct inode *rip;	/* pointer to inode to be released */
 {
@@ -83,7 +90,9 @@ register struct inode *rip;	/* pointer to inode to be released */
  */
 
   if (rip == NIL_INODE) return;	/* checking here is easier than in caller */
+  // 没有程序使用这个i 节点　,可以在内存释放了
   if (--rip->i_count == 0) {	/* i_count == 0 means no one is using it now */
+      // 没有目录使指向inode ,磁盘上信息可以释放了
 	if (rip->i_nlinks == 0) {
 		/* i_nlinks == 0 means free the inode. */
 		truncate(rip);	/* return all the disk blocks */
@@ -101,6 +110,7 @@ register struct inode *rip;	/* pointer to inode to be released */
 /*===========================================================================*
  *				alloc_inode				     *
  *===========================================================================*/
+// 申请一个i节点
 PUBLIC struct inode *alloc_inode(dev_t dev, mode_t bits)
 {
 /* Allocate a free inode on 'dev', and return a pointer to it. */
@@ -110,6 +120,8 @@ PUBLIC struct inode *alloc_inode(dev_t dev, mode_t bits)
   int major, minor, inumb;
   bit_t b;
 
+  // 先获取文件系统的超级块
+  // 如果文件系统只读，返回失败信息
   sp = get_super(dev);	/* get pointer to super_block */
   if (sp->s_rd_only) {	/* can't allocate an inode on a read only device. */
 	err_code = EROFS;
@@ -117,6 +129,7 @@ PUBLIC struct inode *alloc_inode(dev_t dev, mode_t bits)
   }
 
   /* Acquire an inode from the bit map. */
+  // 从i节点位图中获取一个可用i节点并对其置位
   b = alloc_bit(sp, IMAP, sp->s_isearch);
   if (b == NO_BIT) {
 	err_code = ENFILE;
@@ -130,6 +143,7 @@ PUBLIC struct inode *alloc_inode(dev_t dev, mode_t bits)
   inumb = (int) b;		/* be careful not to pass unshort as param */
 
   /* Try to acquire a slot in the inode table. */
+  // 申请内存空间
   if ((rip = get_inode(NO_DEV, inumb)) == NIL_INODE) {
 	/* No inode table slots available.  Free the inode just allocated. */
 	free_bit(sp, IMAP, b);
@@ -158,6 +172,7 @@ PUBLIC struct inode *alloc_inode(dev_t dev, mode_t bits)
 /*===========================================================================*
  *				wipe_inode				     *
  *===========================================================================*/
+// 擦书ｉ节点信息
 PUBLIC void wipe_inode(rip)
 register struct inode *rip;	/* the inode to be erased */
 {
@@ -177,6 +192,7 @@ register struct inode *rip;	/* the inode to be erased */
 /*===========================================================================*
  *				free_inode				     *
  *===========================================================================*/
+// 释放i节点
 PUBLIC void free_inode(dev, inumb)
 dev_t dev;			/* on which device is the inode */
 ino_t inumb;			/* number of inode to be freed */
@@ -187,6 +203,7 @@ ino_t inumb;			/* number of inode to be freed */
   bit_t b;
 
   /* Locate the appropriate super_block. */
+  // 释放i节点 更改对应位图以及超级块中的搜索标识
   sp = get_super(dev);
   if (inumb <= 0 || inumb > sp->s_ninodes) return;
   b = inumb;
@@ -197,6 +214,8 @@ ino_t inumb;			/* number of inode to be freed */
 /*===========================================================================*
  *				update_times				     *
  *===========================================================================*/
+// 更新i节点时间信息
+// 为了减少和内核任务发消息　延迟更新
 PUBLIC void update_times(rip)
 register struct inode *rip;	/* pointer to inode to be read/written */
 {
@@ -238,6 +257,7 @@ int rw_flag;			/* READING or WRITING */
   /* Get the block where the inode resides. */
   sp = get_super(rip->i_dev);	/* get pointer to super block */
   rip->i_sp = sp;		/* inode must contain super block pointer */
+  // 计算i节点所在的块 1 引导块　＋　１　超级块　＋ i节点位图块 + 数据位图块
   offset = sp->s_imap_blocks + sp->s_zmap_blocks + 2;
   b = (block_t) (rip->i_num - 1)/sp->s_inodes_per_block + offset;
   bp = get_block(rip->i_dev, b, NORMAL);
@@ -312,6 +332,8 @@ int norm;			/* TRUE = do not swap bytes; FALSE = swap */
 /*===========================================================================*
  *				new_icopy				     *
  *===========================================================================*/
+// 把磁盘上i节点信息 转化为内里的形式
+// 应为 兼容问题
 PRIVATE void new_icopy(rip, dip, direction, norm)
 register struct inode *rip;	/* pointer to the in-core inode struct */
 register d2_inode *dip;	/* pointer to the d2_inode struct */
@@ -355,6 +377,7 @@ int norm;			/* TRUE = do not swap bytes; FALSE = swap */
 /*===========================================================================*
  *				dup_inode				     *
  *===========================================================================*/
+// 复制一个i节点引用
 PUBLIC void dup_inode(ip)
 struct inode *ip;		/* The inode to be duplicated. */
 {

@@ -8,7 +8,11 @@
  * file systems and 'd2_inode' for V2 file systems.
  */
 
+// inode 节点　
+// 一部分在磁盘上
+// 一部分在内存上
 EXTERN struct inode {
+  // 对应磁盘上信息
   mode_t i_mode;		/* file type, protection, etc. */
   nlink_t i_nlinks;		/* how many links to this file */
   uid_t i_uid;			/* user id of the file's owner */
@@ -20,6 +24,7 @@ EXTERN struct inode {
   zone_t i_zone[V2_NR_TZONES]; /* zone numbers for direct, ind, and dbl ind */
   
   /* The following items are not present on the disk. */
+  // 内存中独有的信息
   dev_t i_dev;			/* which device is the inode on */
   ino_t i_num;			/* inode number on its (minor) device */
   int i_count;			/* # times inode used; 0 means slot is free */

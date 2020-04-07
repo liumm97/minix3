@@ -53,9 +53,11 @@ int only_search;		/* if NO_READ, don't read, else act normal */
    * is skipped
    */
   if (dev != NO_DEV) {
+    // 最简单hash 函数  类似取余做索引
 	b = (int) block & HASH_MASK;
 	bp = buf_hash[b];
 	while (bp != NIL_BUF) {
+        // 从缓冲区找到了 修改计数 返回
 		if (bp->b_blocknr == block && bp->b_dev == dev) {
 			/* Block needed has been found. */
 			if (bp->b_count == 0) rm_lru(bp);
