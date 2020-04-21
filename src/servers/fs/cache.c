@@ -24,6 +24,10 @@ FORWARD _PROTOTYPE( void rm_lru, (struct buf *bp) );
 /*===========================================================================*
  *				get_block				     *
  *===========================================================================*/
+// 获取数据块
+// 首先从缓冲区中取 
+// 有返回引用
+// 没有从块设备中读取
 PUBLIC struct buf *get_block(dev, block, only_search)
 register dev_t dev;		/* on which device is the block? */
 register block_t block;		/* which block is wanted? */
@@ -72,10 +76,12 @@ int only_search;		/* if NO_READ, don't read, else act normal */
   }
 
   /* Desired block is not on available chain.  Take oldest block ('front'). */
+  // 从空闲的lUR中去一个块
   if ((bp = front) == NIL_BUF) panic(__FILE__,"all buffers in use", NR_BUFS);
   rm_lru(bp);
 
   /* Remove the block that was just taken from its hash chain. */
+  // 从原来的hash 链上移除
   b = (int) bp->b_blocknr & HASH_MASK;
   prev_ptr = buf_hash[b];
   if (prev_ptr == bp) {
@@ -94,11 +100,13 @@ int only_search;		/* if NO_READ, don't read, else act normal */
   /* If the block taken is dirty, make it clean by writing it to the disk.
    * Avoid hysteresis by flushing all other dirty blocks for the same device.
    */
+  // 把这个块写回磁盘
   if (bp->b_dev != NO_DEV) {
 	if (bp->b_dirt == DIRTY) flushall(bp->b_dev);
   }
 
   /* Fill in block's parameters and add it to the hash chain where it goes. */
+  // 填充至对应hash 链上
   bp->b_dev = dev;		/* fill in device number */
   bp->b_blocknr = block;	/* fill in block number */
   bp->b_count++;		/* record that block is being used */
@@ -107,6 +115,7 @@ int only_search;		/* if NO_READ, don't read, else act normal */
   buf_hash[b] = bp;		/* add to hash list */
 
   /* Go get the requested block unless searching or prefetching. */
+  // 读取实际的磁盘块
   if (dev != NO_DEV) {
 	if (only_search == PREFETCH) bp->b_dev = NO_DEV;
 	else
@@ -120,6 +129,7 @@ int only_search;		/* if NO_READ, don't read, else act normal */
 /*===========================================================================*
  *				put_block				     *
  *===========================================================================*/
+// 释放缓冲块
 PUBLIC void put_block(bp, block_type)
 register struct buf *bp;	/* pointer to the buffer to be released */
 int block_type;			/* INODE_BLOCK, DIRECTORY_BLOCK, or whatever */
@@ -144,6 +154,7 @@ int block_type;			/* INODE_BLOCK, DIRECTORY_BLOCK, or whatever */
    * it on the front of the LRU chain where it will be the first one to be
    * taken when a free buffer is needed later.
    */
+  // 放在lRU 前边 
   if (bp->b_dev == DEV_RAM || block_type & ONE_SHOT) {
 	/* Block probably won't be needed quickly. Put it on front of chain.
   	 * It will be the next block to be evicted from the cache.
@@ -156,6 +167,7 @@ int block_type;			/* INODE_BLOCK, DIRECTORY_BLOCK, or whatever */
 		front->b_prev = bp;
 	front = bp;
   } else {
+      // 放在LRU 后边 存活时间长一些
 	/* Block probably will be needed quickly.  Put it on rear of chain.
   	 * It will not be evicted from the cache for a long time.
   	 */
@@ -172,6 +184,7 @@ int block_type;			/* INODE_BLOCK, DIRECTORY_BLOCK, or whatever */
    * should be written to the disk immediately to avoid messing up the file
    * system in the event of a crash.
    */
+  // 一些重要的块立刻写回磁盘
   if ((block_type & WRITE_IMMED) && bp->b_dirt==DIRTY && bp->b_dev != NO_DEV) {
 		rw_block(bp, WRITING);
   } 
@@ -180,12 +193,13 @@ int block_type;			/* INODE_BLOCK, DIRECTORY_BLOCK, or whatever */
 /*===========================================================================*
  *				alloc_zone				     *
  *===========================================================================*/
+// 获取新的区段
+// 为了提高性能 ，尽量使区段聚合在一起
 PUBLIC zone_t alloc_zone(dev, z)
 dev_t dev;			/* device where zone wanted */
 zone_t z;			/* try to allocate new zone near this one */
 {
 /* Allocate a new zone on the indicated device and return its number. */
-
   int major, minor;
   bit_t b, bit;
   struct super_block *sp;
@@ -197,6 +211,7 @@ zone_t z;			/* try to allocate new zone near this one */
    *     z = b + sp->s_firstdatazone - 1
    * Alloc_bit() never returns 0, since this is used for NO_BIT (failure).
    */
+  // 获取超级块
   sp = get_super(dev);
 
   /* If z is 0, skip initial part of the map known to be fully in use. */
@@ -205,6 +220,7 @@ zone_t z;			/* try to allocate new zone near this one */
   } else {
 	bit = (bit_t) z - (sp->s_firstdatazone - 1);
   }
+  // 获取和修改对应的区段位图
   b = alloc_bit(sp, ZMAP, bit);
   if (b == NO_BIT) {
 	err_code = ENOSPC;
@@ -214,6 +230,7 @@ zone_t z;			/* try to allocate new zone near this one */
 		sp->s_dev == root_dev ? "root " : "", major, minor);
 	return(NO_ZONE);
   }
+  // 修改位图索引
   if (z == sp->s_firstdatazone) sp->s_zsearch = b;	/* for next time */
   return(sp->s_firstdatazone - 1 + (zone_t) b);
 }
@@ -221,6 +238,7 @@ zone_t z;			/* try to allocate new zone near this one */
 /*===========================================================================*
  *				free_zone				     *
  *===========================================================================*/
+// 释放区段
 PUBLIC void free_zone(dev, numb)
 dev_t dev;				/* device where zone located */
 zone_t numb;				/* zone to be returned */
@@ -241,6 +259,7 @@ zone_t numb;				/* zone to be returned */
 /*===========================================================================*
  *				rw_block				     *
  *===========================================================================*/
+// 实际磁盘读取
 PUBLIC void rw_block(bp, rw_flag)
 register struct buf *bp;	/* buffer pointer */
 int rw_flag;			/* READING or WRITING */
@@ -256,6 +275,8 @@ int rw_flag;			/* READING or WRITING */
   dev_t dev;
   int block_size;
 
+  // 不同文件系统块大小不一样
+  // 从超级块获取
   block_size = get_block_size(bp->b_dev);
 
   if ( (dev = bp->b_dev) != NO_DEV) {
@@ -280,6 +301,9 @@ int rw_flag;			/* READING or WRITING */
 /*===========================================================================*
  *				invalidate				     *
  *===========================================================================*/
+// 移除文件系统 
+// 可移动储存物质拔出时 
+// 清除内部缓存 放置污染再次插入可移动储存物质
 PUBLIC void invalidate(device)
 dev_t device;			/* device whose blocks are to be purged */
 {
@@ -294,6 +318,7 @@ dev_t device;			/* device whose blocks are to be purged */
 /*===========================================================================*
  *				flushall				     *
  *===========================================================================*/
+// 缓冲区数据回写
 PUBLIC void flushall(dev)
 dev_t dev;			/* device to flush */
 {
@@ -311,6 +336,8 @@ dev_t dev;			/* device to flush */
 /*===========================================================================*
  *				rw_scattered				     *
  *===========================================================================*/
+// 减少信息传递
+// 一次读写多个数据块
 PUBLIC void rw_scattered(dev, bufq, bufqsize, rw_flag)
 dev_t dev;			/* major-minor device number */
 struct buf **bufq;		/* pointer to array of buffers */
@@ -330,6 +357,7 @@ int rw_flag;			/* READING or WRITING */
   block_size = get_block_size(dev);
 
   /* (Shell) sort buffers on b_blocknr. */
+  // 数据块排序 
   gap = 1;
   do
 	gap = 3 * gap + 1;
@@ -409,6 +437,7 @@ int rw_flag;			/* READING or WRITING */
 /*===========================================================================*
  *				rm_lru					     *
  *===========================================================================*/
+// 在LRU 删除节点 维护front 和 rear 和 bufs_in_user 
 PRIVATE void rm_lru(bp)
 struct buf *bp;
 {

@@ -115,6 +115,7 @@ int style;			/* style of the device */
 /*===========================================================================*
  *				build_dmap		 		     *
  *===========================================================================*/
+// 构建驱动信息
 PUBLIC void build_dmap()
 {
 /* Initialize the table with all device <-> driver mappings. Then, map  

@@ -25,6 +25,7 @@ FORWARD _PROTOTYPE( char *get_name, (char *old_name, char string [NAME_MAX]) );
 /*===========================================================================*
  *				eat_path				     *
  *===========================================================================*/
+// 解析文件路径名 找到对应的inode
 PUBLIC struct inode *eat_path(path)
 char *path;			/* the path name to be parsed */
 {
@@ -52,6 +53,7 @@ char *path;			/* the path name to be parsed */
 /*===========================================================================*
  *				last_dir				     *
  *===========================================================================*/
+// 获取路径最后一个目录
 PUBLIC struct inode *last_dir(path, string)
 char *path;			/* the path name to be parsed */
 char string[NAME_MAX];		/* the final component is returned here */
@@ -69,24 +71,33 @@ char string[NAME_MAX];		/* the final component is returned here */
   register struct inode *new_ip;
 
   /* Is the path absolute or relative?  Initialize 'rip' accordingly. */
+  // 判断路径是绝对路径还是相对路径
   rip = (*path == '/' ? fp->fp_rootdir : fp->fp_workdir);
 
   /* If dir has been removed or path is empty, return ENOENT. */
+  //  目录已经被删除或者路径为空 ,返回错误
   if (rip->i_nlinks == 0 || *path == '\0') {
 	err_code = ENOENT;
 	return(NIL_INODE);
   }
 
+  // inode 引用+1
   dup_inode(rip);		/* inode will be returned with put_inode */
 
   /* Scan the path component by component. */
   while (TRUE) {
 	/* Extract one component. */
+    // 获取路径第一个目录  
+    // path = /usr/lib/ls
+    // new_name = lig/ls
+    // string = usr
 	if ( (new_name = get_name(path, string)) == (char*) 0) {
+        // 空指针
 		put_inode(rip);	/* bad path in user space */
 		return(NIL_INODE);
 	}
 	if (*new_name == '\0') {
+        // 解析完成了 判断是不是目录
 		if ( (rip->i_mode & I_TYPE) == I_DIRECTORY) {
 			return(rip);	/* normal exit */
 		} else {
@@ -98,6 +109,7 @@ char string[NAME_MAX];		/* the final component is returned here */
         }
 
 	/* There is more path.  Keep parsing. */
+    // 找到对应inode
 	new_ip = advance(rip, string);
 	put_inode(rip);		/* rip either obsolete or irrelevant */
 	if (new_ip == NIL_INODE) return(NIL_INODE);
@@ -111,6 +123,9 @@ char string[NAME_MAX];		/* the final component is returned here */
 /*===========================================================================*
  *				get_name				     *
  *===========================================================================*/
+// 从给定文件路径解析第一个目录
+// /one/two/three  
+// return two/three
 PRIVATE char *get_name(old_name, string)
 char *old_name;			/* path name to parse */
 char string[NAME_MAX];		/* component extracted from 'old_name' */
@@ -132,6 +147,7 @@ char string[NAME_MAX];		/* component extracted from 'old_name' */
   while ( (c = *rnp) == '/') rnp++;	/* skip leading slashes */
 
   /* Copy the unparsed path, 'old_name', to the array, 'string'. */
+  // 解析第一个目录 比如 /usr/tmp/log/a.txt 解析 np =usr rnp=/tmp/log/a.txt
   while ( rnp < &old_name[PATH_MAX]  &&  c != '/'   &&  c != '\0') {
 	if (np < &string[NAME_MAX]) *np++ = c;
 	c = *++rnp;		/* advance to next character */
@@ -152,6 +168,7 @@ char string[NAME_MAX];		/* component extracted from 'old_name' */
 /*===========================================================================*
  *				advance					     *
  *===========================================================================*/
+// 从对应目录中寻找文件(目录)
 PUBLIC struct inode *advance(dirp, string)
 struct inode *dirp;		/* inode for directory to be searched */
 char string[NAME_MAX];		/* component name to look for */
@@ -181,6 +198,7 @@ char string[NAME_MAX];		/* component name to look for */
   }
 
   /* Don't go beyond the current root directory, unless the string is dot2. */
+  // 超过根目录 返回根目录
   if (dirp == fp->fp_rootdir && strcmp(string, "..") == 0 && string != dot2)
 		return(get_inode(dirp->i_dev, (int) dirp->i_num));
 
@@ -233,6 +251,7 @@ char string[NAME_MAX];		/* component name to look for */
 /*===========================================================================*
  *				search_dir				     *
  *===========================================================================*/
+//从目录中查找对应的文件
 PUBLIC int search_dir(ldir_ptr, string, numb, flag)
 register struct inode *ldir_ptr; /* ptr to inode for dir to search */
 char string[NAME_MAX];		 /* component to search for */
@@ -259,10 +278,16 @@ int flag;			 /* LOOK_UP, ENTER, DELETE or IS_EMPTY */
   int extended = 0;
 
   /* If 'ldir_ptr' is not a pointer to a dir inode, error. */
+  // 判断i节点是不是目录
   if ( (ldir_ptr->i_mode & I_TYPE) != I_DIRECTORY) return(ENOTDIR);
 
   r = OK;
 
+
+  // 验证权限 
+  // 判断目录为空 不需要验证 
+  // LOOK_UP  需要X权限
+  // ENTER 和 DELETE 需要写权限
   if (flag != IS_EMPTY) {
 	bits = (flag == LOOK_UP ? X_BIT : W_BIT | X_BIT);
 
@@ -281,19 +306,23 @@ int flag;			 /* LOOK_UP, ENTER, DELETE or IS_EMPTY */
   match = 0;			/* set when a string match occurs */
 
   for (pos = 0; pos < ldir_ptr->i_size; pos += ldir_ptr->i_sp->s_block_size) {
+    // 获取偏移量对应的block
 	b = read_map(ldir_ptr, pos);	/* get block number */
 
 	/* Since directories don't have holes, 'b' cannot be NO_BLOCK. */
+    // 获取对应的目录区段
 	bp = get_block(ldir_ptr->i_dev, b, NORMAL);	/* get a dir block */
 
 	if (bp == NO_BLOCK)
 		panic(__FILE__,"get_block returned NO_BLOCK", NO_NUM);
 
 	/* Search a directory block. */
+    // 在这个目录快查找目录
 	for (dp = &bp->b_dir[0];
 		dp < &bp->b_dir[NR_DIR_ENTRIES(ldir_ptr->i_sp->s_block_size)];
 		dp++) {
 		if (++new_slots > old_slots) { /* not found, but room left */
+            // 找完了 ，也没有找到
 			if (flag == ENTER) e_hit = TRUE;
 			break;
 		}
@@ -315,7 +344,7 @@ int flag;			 /* LOOK_UP, ENTER, DELETE or IS_EMPTY */
 			/* LOOK_UP or DELETE found what it wanted. */
 			r = OK;
 			if (flag == IS_EMPTY) r = ENOTEMPTY;
-			else if (flag == DELETE) {
+			else if (flag == DELETE) { // 删除文件
 				/* Save d_ino for recovery. */
 				t = NAME_MAX - sizeof(ino_t);
 				*((ino_t *) &dp->d_name[t]) = dp->d_ino;
@@ -323,15 +352,17 @@ int flag;			 /* LOOK_UP, ENTER, DELETE or IS_EMPTY */
 				bp->b_dirt = DIRTY;
 				ldir_ptr->i_update |= CTIME | MTIME;
 				ldir_ptr->i_dirt = DIRTY;
-			} else {
+			} else { // 查看文件
 				sp = ldir_ptr->i_sp;	/* 'flag' is LOOK_UP */
 				*numb = conv4(sp->s_native, (int) dp->d_ino);
 			}
+            // 完成了 ，回写磁盘信息
 			put_block(bp, DIRECTORY_BLOCK);
 			return(r);
 		}
 
 		/* Check for free slot for the benefit of ENTER. */
+        // 找到一个slot
 		if (flag == ENTER && dp->d_ino == 0) {
 			e_hit = TRUE;	/* we found a free slot */
 			break;
@@ -351,6 +382,7 @@ int flag;			 /* LOOK_UP, ENTER, DELETE or IS_EMPTY */
   /* This call is for ENTER.  If no free slot has been found so far, try to
    * extend directory.
    */
+  // 当前目录块没找到 ，申请新的
   if (e_hit == FALSE) { /* directory is full and no room left in last block */
 	new_slots++;		/* increase directory size by 1 entry */
 	if (new_slots == 0) return(EFBIG); /* dir size limited by slot count */
@@ -361,6 +393,7 @@ int flag;			 /* LOOK_UP, ENTER, DELETE or IS_EMPTY */
   }
 
   /* 'bp' now points to a directory block with space. 'dp' points to slot. */
+  // 修改磁盘信息 回写 
   (void) memset(dp->d_name, 0, (size_t) NAME_MAX); /* clear entry */
   for (i = 0; string[i] && i < NAME_MAX; i++) dp->d_name[i] = string[i];
   sp = ldir_ptr->i_sp; 

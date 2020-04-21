@@ -35,6 +35,8 @@ FORWARD _PROTOTYPE( struct inode *new_node, (char *path, mode_t bits,
 /*===========================================================================*
  *				do_creat				     *
  *===========================================================================*/
+// 创建文件 
+// 不经常使用 被 open取代
 PUBLIC int do_creat()
 {
 /* Perform the creat(name, mode) system call. */

@@ -42,6 +42,7 @@ PUBLIC int do_link()
   struct inode *new_ip;
 
   /* See if 'name' (file to be linked) exists. */
+  // 获取被链接文件inode
   if (fetch_name(m_in.name1, m_in.name1_length, M1) != OK) return(err_code);
   if ( (rip = eat_path(user_path)) == NIL_INODE) return(err_code);
 
@@ -55,6 +56,7 @@ PUBLIC int do_link()
 	if ( (rip->i_mode & I_TYPE) == I_DIRECTORY && !super_user) r = EPERM;
 
   /* If error with 'name', return the inode. */
+  // 检查不过 ，恢复以前状态
   if (r != OK) {
 	put_inode(rip);
 	return(r);
@@ -314,6 +316,8 @@ PUBLIC int do_rename()
 /*===========================================================================*
  *				truncate				     *
  *===========================================================================*/
+// 清空文件 
+// 释放文件使用储存空间
 PUBLIC void truncate(rip)
 register struct inode *rip;	/* pointer to inode to be truncated */
 {
@@ -327,6 +331,7 @@ register struct inode *rip;	/* pointer to inode to be truncated */
   dev_t dev;
 
   file_type = rip->i_mode & I_TYPE;	/* check to see if file is special */
+  // 特殊文件 不做处理
   if (file_type == I_CHAR_SPECIAL || file_type == I_BLOCK_SPECIAL) return;
   dev = rip->i_dev;		/* device on which inode resides */
   scale = rip->i_sp->s_log_zone_size;
@@ -338,6 +343,7 @@ register struct inode *rip;	/* pointer to inode to be truncated */
   if (waspipe) rip->i_size = PIPE_SIZE(rip->i_sp->s_block_size);
 
   /* Step through the file a zone at a time, finding and freeing the zones. */
+  // 通过文件虚拟位置定位数据块
   for (position = 0; position < rip->i_size; position += zone_size) {
 	if ( (b = read_map(rip, position)) != NO_BLOCK) {
 		z = (zone_t) b >> scale;

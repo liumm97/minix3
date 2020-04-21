@@ -136,6 +136,7 @@ PUBLIC int do_access()
 /*===========================================================================*
  *				forbidden				     *
  *===========================================================================*/
+// 验证文件权限
 PUBLIC int forbidden(register struct inode *rip, mode_t access_desired)
 {
 /* Given a pointer to an inode, 'rip', and the access desired, determine

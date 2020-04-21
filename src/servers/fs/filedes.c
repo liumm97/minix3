@@ -14,6 +14,7 @@
 /*===========================================================================*
  *				get_fd					     *
  *===========================================================================*/
+// 查找文件描述符和filep
 PUBLIC int get_fd(int start, mode_t bits, int *k, struct filp **fpt)
 {
 /* Look for a free file descriptor and a free filp slot.  Fill in the mode word
@@ -27,6 +28,7 @@ PUBLIC int get_fd(int start, mode_t bits, int *k, struct filp **fpt)
   *k = -1;			/* we need a way to tell if file desc found */
 
   /* Search the fproc fp_filp table for a free file descriptor. */
+  // 寻找进程对应的文件描述符表
   for (i = start; i < OPEN_MAX; i++) {
 	if (fp->fp_filp[i] == NIL_FILP) {
 		/* A file descriptor has been located. */
@@ -38,6 +40,7 @@ PUBLIC int get_fd(int start, mode_t bits, int *k, struct filp **fpt)
   /* Check to see if a file descriptor has been found. */
   if (*k < 0) return(EMFILE);	/* this is why we initialized k to -1 */
 
+  // 需找一个空的filep
   /* Now that a file descriptor has been found, look for a free filp slot. */
   for (f = &filp[0]; f < &filp[NR_FILPS]; f++) {
 	if (f->filp_count == 0) {
@@ -59,6 +62,7 @@ PUBLIC int get_fd(int start, mode_t bits, int *k, struct filp **fpt)
 /*===========================================================================*
  *				get_filp				     *
  *===========================================================================*/
+// 获取filep
 PUBLIC struct filp *get_filp(fild)
 int fild;			/* file descriptor */
 {
@@ -72,6 +76,7 @@ int fild;			/* file descriptor */
 /*===========================================================================*
  *				find_filp				     *
  *===========================================================================*/
+// 根据i节点信息找到对应的信息
 PUBLIC struct filp *find_filp(register struct inode *rip, mode_t bits)
 {
 /* Find a filp slot that refers to the inode 'rip' in a way as described

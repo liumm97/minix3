@@ -41,6 +41,8 @@ PUBLIC time_t clock_time()
 /*===========================================================================*
  *				fetch_name				     *
  *===========================================================================*/
+// 获取文件路径名
+// 因为消息传递机制问题 路径名可能在消息中 ，也可能在用户进程空间中 ，通过消息传递指针
 PUBLIC int fetch_name(path, len, flag)
 char *path;			/* pointer to the path in user space */
 int len;			/* path length, including 0 byte */

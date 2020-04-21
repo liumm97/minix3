@@ -242,6 +242,7 @@ register struct inode *rip;	/* pointer to inode to be read/written */
 /*===========================================================================*
  *				rw_inode				     *
  *===========================================================================*/
+// 读取或者写入i节点
 PUBLIC void rw_inode(rip, rw_flag)
 register struct inode *rip;	/* pointer to inode to be read/written */
 int rw_flag;			/* READING or WRITING */

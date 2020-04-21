@@ -2,6 +2,7 @@
  * inodes.  A slot is free if filp_count == 0.
  */
 
+// 存放文件位置信息等
 EXTERN struct filp {
   mode_t filp_mode;		/* RW bits, telling how file is opened */
   int filp_flags;		/* flags from open and fcntl */

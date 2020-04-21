@@ -36,8 +36,10 @@ EXTERN struct buf {
   } b;
 
   /* Header portion of the buffer. */
+  // 在LUR 中使用
   struct buf *b_next;		/* used to link all free bufs in a chain */
   struct buf *b_prev;		/* used to link all free bufs the other way */
+  // 在hash 链表中使用
   struct buf *b_hash;		/* used to link bufs on hash chains */
   // 块编号
   block_t b_blocknr;		/* block number of its (minor) device */

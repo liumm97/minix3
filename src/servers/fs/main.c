@@ -130,10 +130,13 @@ PRIVATE void get_work()
 /*===========================================================================*
  *				buf_pool				     *
  *===========================================================================*/
+// 初始化缓存
 PRIVATE void buf_pool(void)
 {
 /* Initialize the buffer pool. */
 
+  // 所有的缓存快放在LUR 上 
+  // 并且放在hash[0] 上
   register struct buf *bp;
 
   bufs_in_use = 0;
@@ -187,9 +190,11 @@ PRIVATE void fs_init()
    * When no more processes follow, the magic process number NONE is sent. 
    * Then, stop and synchronize with the PM.
    */
+  // 通过进程管理器给发发的消息初始化进程表
   do {
   	if (OK != (s=receive(PM_PROC_NR, &mess)))
   		panic(__FILE__,"FS couldn't receive from PM", s);
+    // 初始化完成进程管理器发这个纤细标识完成了
   	if (NONE == mess.PR_PROC_NR) break; 
 
 	rfp = &fproc[mess.PR_PROC_NR];
