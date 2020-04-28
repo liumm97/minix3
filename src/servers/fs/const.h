@@ -22,9 +22,9 @@
 #define SUPER_V2_REV  0x6824	/* V2 magic written on PC, read on 68K or vv */
 #define SUPER_V3      0x4d5a	/* magic # for V3 file systems */
 
-#define V1		   1	/* version number of V1 file systems */ 
-#define V2		   2	/* version number of V2 file systems */ 
-#define V3		   3	/* version number of V3 file systems */ 
+#define V1		   1	/* version number of V1 file systems */
+#define V2		   2	/* version number of V2 file systems */
+#define V3		   3	/* version number of V3 file systems */
 
 /* Miscellaneous constants */
 #define SU_UID 	 ((uid_t) 0)	/* super_user's uid_t */
@@ -46,7 +46,7 @@
 #define LOOK_UP            0 /* tells search_dir to lookup string */
 #define ENTER              1 /* tells search_dir to make dir entry */
 #define DELETE             2 /* tells search_dir to delete entry */
-#define IS_EMPTY           3 /* tells search_dir to ret. OK or ENOTEMPTY */  
+#define IS_EMPTY           3 /* tells search_dir to ret. OK or ENOTEMPTY */
 
 #define CLEAN              0	/* disk and memory copies identical */
 #define DIRTY              1	/* disk and memory copies differ */
@@ -77,7 +77,7 @@
 #define V1_INODE_SIZE             usizeof (d1_inode)  /* bytes in V1 dsk ino */
 
 /* # zones/indir block */
-#define V1_INDIRECTS (STATIC_BLOCK_SIZE/V1_ZONE_NUM_SIZE)  
+#define V1_INDIRECTS (STATIC_BLOCK_SIZE/V1_ZONE_NUM_SIZE)
 
 /* # V1 dsk inodes/blk */
 #define V1_INODES_PER_BLOCK (STATIC_BLOCK_SIZE/V1_INODE_SIZE)

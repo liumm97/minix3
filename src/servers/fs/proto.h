@@ -4,7 +4,7 @@
 
 /* Structs used in prototypes must be declared as such first. */
 struct buf;
-struct filp;		
+struct filp;
 struct inode;
 struct super_block;
 
@@ -17,13 +17,13 @@ _PROTOTYPE( void invalidate, (Dev_t device)				);
 _PROTOTYPE( void put_block, (struct buf *bp, int block_type)		);
 _PROTOTYPE( void rw_block, (struct buf *bp, int rw_flag)		);
 _PROTOTYPE( void rw_scattered, (Dev_t dev,
-			struct buf **bufq, int bufqsize, int rw_flag)	);
+                                struct buf **bufq, int bufqsize, int rw_flag)	);
 
 /* device.c */
 _PROTOTYPE( int dev_open, (Dev_t dev, int proc, int flags)		);
 _PROTOTYPE( void dev_close, (Dev_t dev)					);
 _PROTOTYPE( int dev_io, (int op, Dev_t dev, int proc, void *buf,
-			off_t pos, int bytes, int flags)		);
+                         off_t pos, int bytes, int flags)		);
 _PROTOTYPE( int gen_opcl, (int op, Dev_t dev, int proc, int flags)	);
 _PROTOTYPE( void gen_io, (int task_nr, message *mess_ptr)		);
 _PROTOTYPE( int no_dev, (int op, Dev_t dev, int proc, int flags)	);
@@ -102,7 +102,7 @@ _PROTOTYPE( int do_open, (void)						);
 /* path.c */
 _PROTOTYPE( struct inode *advance,(struct inode *dirp, char string[NAME_MAX]));
 _PROTOTYPE( int search_dir, (struct inode *ldir_ptr,
-			char string [NAME_MAX], ino_t *numb, int flag)	);
+                             char string [NAME_MAX], ino_t *numb, int flag)	);
 _PROTOTYPE( struct inode *eat_path, (char *path)			);
 _PROTOTYPE( struct inode *last_dir, (char *path, char string [NAME_MAX]));
 
@@ -110,7 +110,7 @@ _PROTOTYPE( struct inode *last_dir, (char *path, char string [NAME_MAX]));
 _PROTOTYPE( int do_pipe, (void)						);
 _PROTOTYPE( int do_unpause, (void)					);
 _PROTOTYPE( int pipe_check, (struct inode *rip, int rw_flag,
-			int oflags, int bytes, off_t position, int *canwrite, int notouch));
+                             int oflags, int bytes, off_t position, int *canwrite, int notouch));
 _PROTOTYPE( void release, (struct inode *ip, int call_nr, int count)	);
 _PROTOTYPE( void revive, (int proc_nr, int bytes)			);
 _PROTOTYPE( void suspend, (int task)					);
@@ -129,7 +129,7 @@ _PROTOTYPE( int read_only, (struct inode *ip)				);
 /* read.c */
 _PROTOTYPE( int do_read, (void)						);
 _PROTOTYPE( struct buf *rahead, (struct inode *rip, block_t baseblock,
-			off_t position, unsigned bytes_ahead)		);
+                                 off_t position, unsigned bytes_ahead)		);
 _PROTOTYPE( void read_ahead, (void)					);
 _PROTOTYPE( block_t read_map, (struct inode *rip, off_t position)	);
 _PROTOTYPE( int read_write, (int rw_flag)				);
@@ -146,7 +146,7 @@ _PROTOTYPE( int do_fstatfs, (void)					);
 /* super.c */
 _PROTOTYPE( bit_t alloc_bit, (struct super_block *sp, int map, bit_t origin));
 _PROTOTYPE( void free_bit, (struct super_block *sp, int map,
-						bit_t bit_returned)	);
+                            bit_t bit_returned)	);
 _PROTOTYPE( struct super_block *get_super, (Dev_t dev)			);
 _PROTOTYPE( int mounted, (struct inode *rip)				);
 _PROTOTYPE( int read_super, (struct super_block *sp)			);
